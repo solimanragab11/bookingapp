@@ -1,0 +1,47 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
+import 'package:remaking_booking_app_trail2/core/widgets/tab_widget.dart';
+import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
+
+class HomeTabsSection extends StatelessWidget {
+  const HomeTabsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final w = MediaQuery.of(context).size.width;
+
+    return BlocBuilder<HomeCubit, HomeStats>(
+      buildWhen: (prev, curr) => curr is HomeLoaded,
+      builder: (context, state) {
+        final currentTab = (state is HomeLoaded) ? state.selectedTab : "nearby";
+
+        return Row(
+          children: [
+            Expanded(
+              child: TabWidget(
+                width: w,
+                height: h,
+                tabName: context.tr('nearby'),
+                isSelected: currentTab == "nearby",
+                ontap: () => context.read<HomeCubit>().selectTab("nearby"),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TabWidget(
+                width: w,
+                height: h,
+                tabName: context.tr('offers'),
+                isSelected: currentTab == "offers",
+                ontap: () => context.read<HomeCubit>().selectTab("offers"),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
