@@ -41,51 +41,56 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBkBDzRAofyMPm4BKRFc7LO5ScY6F2EYHM',
-    appId: '1:380908941645:web:284f91735a7c12cc68c704',
-    messagingSenderId: '380908941645',
-    projectId: 'booking-68265',
-    authDomain: 'booking-68265.firebaseapp.com',
-    storageBucket: 'booking-68265.firebasestorage.app',
-    measurementId: 'G-MN7VZ70B9M',
+    apiKey: 'AIzaSyDCNVJXpMrmS9fn0MSlGLOnNCqfPyldpU0',
+    appId: '1:305382544999:web:8344f7bd187c9acb6826c2',
+    messagingSenderId: '305382544999',
+    projectId: 'hanzbthalk-aa12c',
+    authDomain: 'hanzbthalk-aa12c.firebaseapp.com',
+    databaseURL: 'https://hanzbthalk-aa12c-default-rtdb.firebaseio.com',
+    storageBucket: 'hanzbthalk-aa12c.firebasestorage.app',
+    measurementId: 'G-D424PWLXPX',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDegTesd3JJEs6nxJEv_Ig6ZSf2yuRjVhs',
-    appId: '1:380908941645:android:0762abf24f8bb91968c704',
-    messagingSenderId: '380908941645',
-    projectId: 'booking-68265',
-    storageBucket: 'booking-68265.firebasestorage.app',
+    apiKey: 'AIzaSyBrP74BqsliBtIgnVPTdParY8IoX6bOA1o',
+    appId: '1:305382544999:android:2fc10343956bc0776826c2',
+    messagingSenderId: '305382544999',
+    projectId: 'hanzbthalk-aa12c',
+    databaseURL: 'https://hanzbthalk-aa12c-default-rtdb.firebaseio.com',
+    storageBucket: 'hanzbthalk-aa12c.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAv3X8ctJQv0spNC8sdgkVDa0MsVh48XXc',
-    appId: '1:380908941645:ios:230985b317c3a56c68c704',
-    messagingSenderId: '380908941645',
-    projectId: 'booking-68265',
-    storageBucket: 'booking-68265.firebasestorage.app',
-    iosClientId: '380908941645-vdsa7gihrcs1m956pe1fii1fueu5drg8.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCr296aQ0IWbcZTzHl30iL4kJGjPQf8OEY',
+    appId: '1:305382544999:ios:cdb1d920bc0bbb4e6826c2',
+    messagingSenderId: '305382544999',
+    projectId: 'hanzbthalk-aa12c',
+    databaseURL: 'https://hanzbthalk-aa12c-default-rtdb.firebaseio.com',
+    storageBucket: 'hanzbthalk-aa12c.firebasestorage.app',
+    androidClientId: '305382544999-ihhmkeq2vh6pp6c0hntllhhbd2rd6n51.apps.googleusercontent.com',
     iosBundleId: 'com.example.remakingBookingAppTrail2',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAv3X8ctJQv0spNC8sdgkVDa0MsVh48XXc',
-    appId: '1:380908941645:ios:230985b317c3a56c68c704',
-    messagingSenderId: '380908941645',
-    projectId: 'booking-68265',
-    storageBucket: 'booking-68265.firebasestorage.app',
-    iosClientId: '380908941645-vdsa7gihrcs1m956pe1fii1fueu5drg8.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCr296aQ0IWbcZTzHl30iL4kJGjPQf8OEY',
+    appId: '1:305382544999:ios:cdb1d920bc0bbb4e6826c2',
+    messagingSenderId: '305382544999',
+    projectId: 'hanzbthalk-aa12c',
+    databaseURL: 'https://hanzbthalk-aa12c-default-rtdb.firebaseio.com',
+    storageBucket: 'hanzbthalk-aa12c.firebasestorage.app',
+    androidClientId: '305382544999-ihhmkeq2vh6pp6c0hntllhhbd2rd6n51.apps.googleusercontent.com',
     iosBundleId: 'com.example.remakingBookingAppTrail2',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBkBDzRAofyMPm4BKRFc7LO5ScY6F2EYHM',
-    appId: '1:380908941645:web:cee496d52ff6b38c68c704',
-    messagingSenderId: '380908941645',
-    projectId: 'booking-68265',
-    authDomain: 'booking-68265.firebaseapp.com',
-    storageBucket: 'booking-68265.firebasestorage.app',
-    measurementId: 'G-0RXQ43GBXZ',
+    apiKey: 'AIzaSyDCNVJXpMrmS9fn0MSlGLOnNCqfPyldpU0',
+    appId: '1:305382544999:web:c2f852d501eaec406826c2',
+    messagingSenderId: '305382544999',
+    projectId: 'hanzbthalk-aa12c',
+    authDomain: 'hanzbthalk-aa12c.firebaseapp.com',
+    databaseURL: 'https://hanzbthalk-aa12c-default-rtdb.firebaseio.com',
+    storageBucket: 'hanzbthalk-aa12c.firebasestorage.app',
+    measurementId: 'G-YTEF144CW5',
   );
 
 }

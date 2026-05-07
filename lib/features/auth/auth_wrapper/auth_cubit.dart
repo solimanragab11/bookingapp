@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
@@ -6,28 +7,64 @@ import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_Wrap
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
 
-  AuthCubit(this._authService) : super(AuthInitial());
+  UserModel? currentUser;
 
-  // الدالة اللي بتناديها في الـ main أو الـ initState
-  void checkAuthStatus() async {
-    emit(AuthLoading());
+  AuthCubit(this._authService) : super(const AuthInitial());
+
+  Future<void> checkAuthStatus() async {
+    emit(const AuthLoading());
     try {
-      if (_authService.isUserLoggedIn()) {
-        UserModel? user = await _authService.getCurrentUser();
-        if (user != null) {
-          // هنا بنبعت الـ role عشان الـ Wrapper يوجه المستخدم صح
-          emit(AuthSuccess(user: user, role: user.userRole));
-        }
-      } else {
-        emit(AuthUnauthenticated());
+      if (!_authService.isUserLoggedIn()) {
+        emit(const AuthUnauthenticated());
+        return;
       }
+
+      currentUser = await _authService.getCurrentUser();
+
+      if (currentUser == null) {
+        // Firebase session exists but Firestore doc is missing — sign out cleanly.
+        await _authService.signOut();
+        emit(const AuthUnauthenticated());
+        return;
+      }
+
+      final role = currentUser!.userRole;
+      if (role != 'owner' && role != 'user') {
+        // Unknown role — treat as unauthenticated to avoid routing into a broken screen.
+        await _authService.signOut();
+        currentUser = null;
+        emit(const AuthUnauthenticated());
+        return;
+      }
+
+      emit(AuthSuccess(user: currentUser!, role: role));
     } catch (e) {
-      emit(AuthFailure(e.toString()));
+      debugPrint('[AuthCubit] checkAuthStatus error: $e');
+      emit(const AuthFailure('authError'));
     }
   }
 
-  void logout() async {
-    await _authService.signOut();
-    emit(AuthUnauthenticated());
+  Future<void> refreshUserData() async {
+    try {
+      final updated = await _authService.getCurrentUser();
+      if (updated != null) {
+        currentUser = updated;
+        emit(AuthSuccess(user: currentUser!, role: currentUser!.userRole));
+      }
+    } catch (e) {
+      debugPrint('[AuthCubit] refreshUserData error: $e');
+      // Silently keep existing state — a background refresh failure is non-fatal.
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      await _authService.signOut();
+    } catch (e) {
+      debugPrint('[AuthCubit] logout error: $e');
+    } finally {
+      currentUser = null;
+      emit(const AuthUnauthenticated());
+    }
   }
 }

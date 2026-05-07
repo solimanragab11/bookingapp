@@ -13,7 +13,7 @@ class BackGround extends StatelessWidget {
       children: [
         Container(color: ColorManager.cardSurface),
         Container(
-          height: h * 0.35,
+          height: h * 0.385,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(

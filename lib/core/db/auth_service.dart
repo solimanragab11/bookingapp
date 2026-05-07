@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
 
 class AuthService {
@@ -64,7 +65,29 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print("Error in getCurrentUser: $e");
+      debugPrint("Error in getCurrentUser: $e");
+      return null;
+    }
+  }
+
+  Future<String?> getCurrentUserId() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        DocumentSnapshot doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          UserModel user = await UserModel.fromJson(
+            doc.data() as Map<String, dynamic>,
+          );
+          return user.id;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error in getCurrentUser: $e");
       return null;
     }
   }
@@ -90,7 +113,7 @@ class AuthService {
     try {
       await _auth.signOut();
     } catch (e) {
-      print("Error signing out: $e");
+      debugPrint("Error signing out: $e");
     }
   }
 
@@ -106,7 +129,7 @@ class AuthService {
       case 'invalid-verification-code':
         return 'invalidCode';
       default:
-        return 'error';
+        return e.toString();
     }
   }
 
@@ -118,5 +141,22 @@ class AuthService {
         .get();
 
     return result.docs.isNotEmpty; // لو لقى أي Document يبقى الرقم موجود
+  }
+  // inside owner_service.dart
+
+  Future<UserModel?> getUserById(String userId) async {
+    try {
+      DocumentSnapshot doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (doc.exists) {
+        return UserModel.fromJson(doc.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error in getCurrentUser: $e");
+      return null;
+    }
   }
 }

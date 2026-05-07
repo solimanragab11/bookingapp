@@ -80,7 +80,9 @@ class HomeDrawer extends StatelessWidget {
             context: context,
             icon: Icons.history,
             titleKey: 'myBookings', // ضفت لك اختيار حجوزاتي لأنه أساسي
-            onTap: () {},
+            onTap: () {
+              Navigator.pushNamed(context, Routes.myBookings);
+            },
           ),
 
           const Spacer(),

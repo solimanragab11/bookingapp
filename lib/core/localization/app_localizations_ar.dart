@@ -36,7 +36,7 @@ class AppLocalizationsAr {
     'amountMustBeGreater': 'المبلغ يجب أن لا يقل عن',
     'error': 'حصل خطأ',
     'failed': 'فشلت العملية',
-    'routeNotFound': 'الطريق مسدود يا ولدي / الصفحة مش موجودة',
+    'routeNotFound': 'احنا في عجيبة ايه الي وداك غريبة؟',
 
     // OTP Verification
     'verifyNumber': 'تحقق من رقمك',
@@ -102,8 +102,19 @@ class AppLocalizationsAr {
     'newBooking': 'حجز جديد لعميل',
     'customerName': 'اسم العميل',
     'selectedHours': 'الساعات المختارة',
+    "myBookings": "حجوزاتي",
+    "confirmed": "مؤكد",
+    "pending": "قيد الانتظار",
+    "cancelled": "ملغي",
+    "paid": "المدفوع",
+    "remaining": "المتبقي",
+    "total": "الإجمالي",
+    "noBookingsFound": "لا توجد حجوزات حالياً",
+    "totalPaid": "إجمالي المدفوع",
+    "past": "المعاد ده عدا خلاص مش هنقدر نحجزه",
+    "booked": "للاسف حد سبقك و حجز",
 
-    // Place Details
+    // PlaceModel Details
     'placeDetails': 'تفاصيل المكان',
     'description': 'الوصف',
     'category': 'التصنيف',
@@ -182,5 +193,12 @@ class AppLocalizationsAr {
     'successMessage': 'تمت العملية بنجاح',
     'gallery': 'المعرض',
     'camera': 'الكاميرا',
+
+    "past_status": "انتهى",
+    "booked_by_app": "حجز بواسطة التطبيق",
+    "booked_by_you": "حجزك أنت",
+    "available_status": "متاح",
+    "msg_time_started": "هذا الموعد قد بدأ بالفعل",
+    "msg_already_booked": "عذراً، هذا الموعد محجوز مسبقاً",
   };
 }

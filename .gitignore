@@ -1,45 +1,27 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# الـ API Keys وأي ملفات سرية
+.env
+lib/core/constants/api_keys.dart # لو حاطط الكيز في ملف لوحدها
+ios/Runner/GoogleService-Info.plist
+android/app/google-services.json
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ملفات الـ Build (كبيرة جداً ومش محتاجين نرفعها)
+build/
+android/.gradle/
+android/app/build.gradle.local
+android/local.properties
+ios/.generated/
 .dart_tool/
-.flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
-/coverage/
 
-# Symbolication related
-app.*.symbols
+# ملفات الـ IDE (بتاعت الـ Editor نفسه)
+.idea/
+.vscode/
+*.iml
+*.iws
+*.swp
 
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# ملفات النظام
+.DS_Store
+Thumbs.db

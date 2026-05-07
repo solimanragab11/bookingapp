@@ -6,7 +6,7 @@ import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart
 import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
 
 class SubPlaceCard extends StatelessWidget {
-  final Place place;
+  final PlaceModel place;
   final SubPlace subPlace;
   final VoidCallback onPressed;
   final bool isAvailable;

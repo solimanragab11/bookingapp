@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/user/payment/payment_service.dart';
 import 'package:remaking_booking_app_trail2/features/user/payment/payment_web_view.dart';
+import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
 
 mixin BookingHelper {
-  /// Format time slot from "HH:mm" to "h:mm AM/PM" format
+  // دالة مساعدة لتنسيق الوقت
   String formatTimeSlot(String slot) {
     final hour = int.parse(slot.split(':')[0]);
     final period = hour < 12 ? 'AM' : 'PM';
@@ -12,27 +14,28 @@ mixin BookingHelper {
     return '${h12.toString().padLeft(2, '0')}:00 $period';
   }
 
-  /// Show snack bar notification
+  // دالة إظهار الرسائل
   void showSnackBar(BuildContext context, String msg, Color color) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
-  /// Handle wallet payment by getting payment URL and opening WebView
+  // الدالة الأساسية للدفع
   Future<void> handleWalletPayment(
     BuildContext context,
     double amount,
     String phone,
   ) async {
-    // Validate amount
+    // سحب الـ Cubit من الـ context اللي جاي من الشاشة
+    final bookingCubit = BlocProvider.of<BookingCubit>(context);
+
     if (amount <= 0) {
-      if (!context.mounted) return;
       showSnackBar(context, context.tr('invalidAmount'), Colors.red);
       return;
     }
 
-    // 1. Show loading dialog
+    // إظهار اللودينج
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -40,62 +43,35 @@ mixin BookingHelper {
     );
 
     try {
-      // 2. Convert amount to piastres (Paymob requires amount in cents)
-      // Example: 150 EGP = 15000 piastres
-      final amountInPiastres = (amount).toInt();
-      print(
-        '[PaymentFlow] Converting amount: $amount EGP → $amountInPiastres piastres',
-      );
-
-      // 3. Get payment URL from server
-      print('[PaymentFlow] Requesting payment URL from PaymentService...');
-      print('[PaymentFlow] Amount: $amountInPiastres piastres, Phone: $phone');
-
       final paymentUrl = await PaymentService().getWalletPaymentUrl(
-        amount: amountInPiastres.toDouble(),
+        amount: amount,
         phone: phone,
       );
+      debugPrint(paymentUrl);
+      if (context.mounted) Navigator.pop(context); // قفل اللودينج
 
-      print('[PaymentFlow] Response: paymentUrl = $paymentUrl');
-
-      // Close loading dialog safely
-      if (!context.mounted) return;
-      Navigator.pop(context);
-
-      // 4. Check if URL is valid
       if (paymentUrl != null && paymentUrl.isNotEmpty) {
-        print('[PaymentFlow] Opening WebView with URL: $paymentUrl');
-
-        // 5. Open WebView safely
-        if (!context.mounted) return;
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PaymentWebViewScreen(
-              paymentUrl: paymentUrl,
-              paidAmount: amount,
+        if (context.mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentWebViewScreen(
+                paymentUrl: paymentUrl,
+                paidAmount: amount,
+                bookingCubit: bookingCubit, // تمرير الـ Cubit للـ WebView
+              ),
             ),
-          ),
-        );
+          );
+        }
       } else {
-        // Show error if no valid URL received
-        if (!context.mounted) return;
-        print('[PaymentFlow] ERROR: Received null or empty URL from server');
-        showSnackBar(context, context.tr('failedPaymentUrl'), Colors.red);
+        if (context.mounted)
+          showSnackBar(context, context.tr('failedPaymentUrl'), Colors.red);
       }
     } catch (e) {
-      print('[PaymentFlow] Exception occurred: $e');
-      print('[PaymentFlow] Stack trace: ${StackTrace.current}');
-
-      // Close loading dialog safely
-      if (!context.mounted) return;
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
+      if (context.mounted) {
+        if (Navigator.canPop(context)) Navigator.pop(context);
+        showSnackBar(context, context.tr('errorProcessingPayment'), Colors.red);
       }
-
-      // Show error message
-      if (!context.mounted) return;
-      showSnackBar(context, context.tr('errorProcessingPayment'), Colors.red);
     }
   }
 }

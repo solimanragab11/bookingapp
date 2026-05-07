@@ -1,6 +1,6 @@
 import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
 
-class Place {
+class PlaceModel {
   final String id;
   final String ownerId;
   final String name;
@@ -18,7 +18,7 @@ class Place {
   final List<SubPlace> subPlaces;
   final bool hasOffer;
 
-  Place({
+  PlaceModel({
     required this.id,
     required this.ownerId,
     required this.name,
@@ -37,8 +37,8 @@ class Place {
     this.hasOffer = false,
   });
 
-  factory Place.fromJson(Map<String, dynamic> json) {
-    return Place(
+  factory PlaceModel.fromJson(Map<String, dynamic> json) {
+    return PlaceModel(
       id: json['id'] as String? ?? '',
       ownerId: json['ownerId'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -96,7 +96,7 @@ class Place {
     };
   }
 
-  Place copyWith({
+  PlaceModel copyWith({
     String? id,
     String? ownerId,
     String? name,
@@ -114,7 +114,7 @@ class Place {
     List<SubPlace>? subPlaces,
     bool? hasOffer,
   }) {
-    return Place(
+    return PlaceModel(
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
       name: name ?? this.name,

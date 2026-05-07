@@ -1,10 +1,12 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 
 class CalendarStrip extends StatelessWidget {
-  final Place place;
+  final PlaceModel place;
   final DateTime selectedDate;
   final int selectedSubPlaceIndex;
   final ValueChanged<DateTime> onDateSelected;
@@ -19,6 +21,9 @@ class CalendarStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // جلب كود اللغة الحالي (ar أو en)
+    final String locale = Localizations.localeOf(context).languageCode;
+
     return SizedBox(
       height: 90,
       child: ListView.builder(
@@ -27,14 +32,15 @@ class CalendarStrip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         itemBuilder: (context, index) {
           final date = DateTime.now().add(Duration(days: index));
-          final dayKey = DateFormat('EEEE').format(date).toLowerCase();
+
+          // dayKey بيفضل دايمًا بالإنجليزي لأنه مفتاح في الـ Map عندك (Database Logic)
+          final dayKey = DateFormat('EEEE', 'en').format(date).toLowerCase();
 
           final subPlace = place.subPlaces[selectedSubPlaceIndex];
           final isFullyBooked =
               (subPlace.freeTimeSlots[dayKey]?.isEmpty) ?? false;
 
-          final isSelected =
-              date.day == selectedDate.day && date.month == selectedDate.month;
+          final isSelected = DateUtils.isSameDay(date, selectedDate);
 
           return GestureDetector(
             onTap: () => onDateSelected(date),
@@ -47,7 +53,9 @@ class CalendarStrip extends StatelessWidget {
                     ? Colors.red.withOpacity(0.3)
                     : (isSelected
                           ? ColorManager.egyptianEarth
-                          : ColorManager.wasabi),
+                          : ColorManager.wasabi.withOpacity(
+                              0.2,
+                            )), // تعديل بسيط للشفافية عشان تبرز أكتر
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(
                   color: isFullyBooked
@@ -59,7 +67,8 @@ class CalendarStrip extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    DateFormat('E').format(date),
+                    // عرض اسم اليوم مختصر (E) مترجم أوتوماتيكياً (السبت، Sat، إلخ)
+                    DateFormat('E', locale).format(date),
                     style: TextStyle(
                       color: isSelected || isFullyBooked
                           ? Colors.white
@@ -68,11 +77,10 @@ class CalendarStrip extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    date.day.toString(),
+                    // الأرقام بتتحول أوتوماتيك لشكلها في اللغة (١، ٢، ٣ أو 1, 2, 3)
+                    DateFormat.d(locale).format(date),
                     style: TextStyle(
-                      color: isSelected || isFullyBooked
-                          ? Colors.white
-                          : Colors.white,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),

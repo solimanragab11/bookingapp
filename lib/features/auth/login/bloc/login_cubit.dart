@@ -1,53 +1,120 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_states.dart';
 import 'package:remaking_booking_app_trail2/features/auth/repo/auth_repo.dart';
-import 'login_states.dart';
 
 class LoginCubit extends Cubit<LoginState> {
-  final AuthRepo authRepo;
+  final AuthRepo _authRepo;
 
-  LoginCubit(this.authRepo) : super(LoginInitial());
+  Timer? _resendTimer;
+  int _remainingSeconds = 60;
 
-  // 1. طلب الـ OTP لتسجيل الدخول
-  // features/auth/login/bloc/login_cubit.dart
+  String? _verificationId;
+  String? get verificationId => _verificationId;
+
+  LoginCubit(this._authRepo) : super(LoginInitial());
+
+  // ---------------------------------------------------------------------------
+  // Send OTP
+  // ---------------------------------------------------------------------------
 
   Future<void> sendLoginOTP(String phoneNumber) async {
+    if (isClosed) return;
     emit(LoginSendOTPLoading());
 
-    // هنا التعديل: نستخدم الدالة اللي بتعمل تشيك الأول
-    await authRepo.loginWithPhoneNumber(
+    await _authRepo.loginWithPhoneNumber(
       phoneNumber: phoneNumber,
-      onCodeSent: (verId) => emit(LoginCodeSent(verId)),
-      onError: (errorKey) => emit(LoginError(errorKey)),
+      onCodeSent: (verId) {
+        if (isClosed) return;
+        _verificationId = verId;
+        emit(LoginCodeSent(verId));
+        _startResendTimer();
+      },
+      onError: (errorKey) {
+        if (isClosed) return;
+        emit(LoginError(errorKey));
+      },
     );
   }
 
-  // 2. التحقق من الكود والدخول
+  // ---------------------------------------------------------------------------
+  // Verify OTP
+  // ---------------------------------------------------------------------------
+
   Future<void> verifyLoginOTP({
     required String verificationId,
     required String smsCode,
   }) async {
+    if (isClosed) return;
     emit(LoginLoading());
     try {
-      // بننادي الـ verifyOTP من الـ Repo
-      // لاحظ: في الـ Login إحنا مش محتاجين نبعت username أو role
-      // لأن الـ Repo هيجيبهم من الـ Firestore أوتوماتيك بما إن اليوزر موجود
-      final user = await authRepo.verifyOTP(
+      final user = await _authRepo.verifyOTP(
         verificationId: verificationId,
         smsCode: smsCode,
-        username: '', // مش هيستخدموا لو اليوزر موجود فعلاً
-        role: '', // مش هيستخدموا لو اليوزر موجود فعلاً
+        username: '',
+        role: '',
       );
-
+      _cancelTimer();
+      if (isClosed) return;
       emit(LoginSuccess(user));
     } catch (e) {
-      // لو الكود غلط مثلاً
-      emit(
-        LoginError(
-          'otpError', // بنستخدم الـ Key بتاع الـ Localization عشان نجيب الرسالة المناسبة
-        ),
-      );
+      debugPrint('[LoginCubit] verifyLoginOTP error: $e');
+      if (isClosed) return;
+      emit(LoginError('otpError'));
     }
   }
 
-  void reset() => emit(LoginInitial());
+  // ---------------------------------------------------------------------------
+  // Timer
+  // ---------------------------------------------------------------------------
+
+  void _startResendTimer() {
+    _cancelTimer();
+    _remainingSeconds = 60;
+
+    // Emit the initial countdown value immediately so the UI shows
+    // "60" right away instead of jumping straight to 59 on first tick.
+    if (isClosed) return;
+    emit(LoginResendCountdown(_remainingSeconds));
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (isClosed) {
+        timer.cancel();
+        return;
+      }
+
+      if (_remainingSeconds <= 0) {
+        timer.cancel();
+        emit(LoginResendEnabled());
+        return;
+      }
+
+      _remainingSeconds--;
+      emit(LoginResendCountdown(_remainingSeconds));
+    });
+  }
+
+  void _cancelTimer() {
+    _resendTimer?.cancel();
+    _resendTimer = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reset
+  // ---------------------------------------------------------------------------
+
+  void reset() {
+    _cancelTimer();
+    _verificationId = null;
+    if (isClosed) return;
+    emit(LoginInitial());
+  }
+
+  @override
+  Future<void> close() {
+    _cancelTimer();
+    return super.close();
+  }
 }

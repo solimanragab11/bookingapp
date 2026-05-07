@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/owner/add_place/logic/manage_place_cubit/manage_place_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/manage_place_cubit/manage_place_cubit.dart';
 
 // دالة ثابتة تظهر الديالوج
 void showSuccessDialog(BuildContext context) {

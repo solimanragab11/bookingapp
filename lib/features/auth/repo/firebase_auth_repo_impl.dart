@@ -1,44 +1,85 @@
-// ignore_for_file: override_on_non_overriding_member
-
+import 'package:flutter/foundation.dart';
 import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
 import 'package:remaking_booking_app_trail2/features/auth/repo/auth_repo.dart';
 
 class FirebaseAuthRepoImpl implements AuthRepo {
-  final AuthService authService;
+  final AuthService _authService;
 
-  FirebaseAuthRepoImpl(this.authService);
+  FirebaseAuthRepoImpl(this._authService);
+
+  // ---------------------------------------------------------------------------
+  // Shared helpers
+  // ---------------------------------------------------------------------------
+
+  /// Strips leading zeros and prepends the Egyptian country code (+20).
+  String _formatEgyptianNumber(String raw) {
+    final clean = raw.trim().replaceAll(' ', '');
+    final withoutLeadingZero = clean.startsWith('0')
+        ? clean.substring(1)
+        : clean;
+    return '+20$withoutLeadingZero';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sign-up OTP
+  // ---------------------------------------------------------------------------
 
   @override
   Future<void> sendOTP({
     required String phoneNumber,
-    required Function(String verId) onCodeSent,
-    required Function(String error) onError,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
   }) async {
-    // 1. تنظيف وتنسيق الرقم
-    String cleanNumber = phoneNumber.trim();
-    if (cleanNumber.startsWith('0')) cleanNumber = cleanNumber.substring(1);
-    String finalNumber = '+20$cleanNumber';
-
+    final formatted = _formatEgyptianNumber(phoneNumber);
     try {
-      // 2. التشيك السحري: هل الرقم موجود قبل كدة؟
-      bool exists = await authService.isPhoneNumberExists(finalNumber);
-
+      final exists = await _authService.isPhoneNumberExists(formatted);
       if (exists) {
         onError('phoneNumberAlreadyExists');
-        return; // بنخرج من الدالة ومش بننادي الـ sendOTP بتاع Firebase
+        return;
       }
-
-      // 3. لو مش موجود، كمل وابعت الـ OTP عادي
-      await authService.sendOTP(
-        phoneNumber: finalNumber,
+      await _authService.sendOTP(
+        phoneNumber: formatted,
         onCodeSent: onCodeSent,
         onError: onError,
       );
     } catch (e) {
-      onError('phoneNumberAlreadyExists');
+      debugPrint('[FirebaseAuthRepoImpl] sendOTP error: $e');
+      onError('otpSendError');
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Login OTP
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<void> loginWithPhoneNumber({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
+  }) async {
+    final formatted = _formatEgyptianNumber(phoneNumber);
+    try {
+      final exists = await _authService.isPhoneNumberExists(formatted);
+      if (!exists) {
+        onError('userNotFound');
+        return;
+      }
+      await _authService.sendOTP(
+        phoneNumber: formatted,
+        onCodeSent: onCodeSent,
+        onError: onError,
+      );
+    } catch (e) {
+      debugPrint('[FirebaseAuthRepoImpl] loginWithPhoneNumber error: $e');
+      onError('otpSendError');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Verify OTP (shared between login and sign-up)
+  // ---------------------------------------------------------------------------
 
   @override
   Future<UserModel> verifyOTP({
@@ -47,83 +88,41 @@ class FirebaseAuthRepoImpl implements AuthRepo {
     required String username,
     required String role,
   }) async {
-    // 1. تسجيل الدخول باستخدام الـ OTP من خلال الـ Service
-    final userCredential = await authService.signInWithOtp(
+    final credential = await _authService.signInWithOtp(
       verificationId: verificationId,
       smsCode: smsCode,
     );
 
-    final user = userCredential.user;
-    if (user == null) throw Exception("Authentication Failed");
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw Exception('verifyOTP: Firebase user is null after sign-in');
+    }
 
-    // 2. التأكد هل المستخدم موجود في Firestore فعلاً؟
-    final userExists = await authService.checkIfUserExists(user.uid);
+    final userExists = await _authService.checkIfUserExists(firebaseUser.uid);
 
     if (userExists) {
-      // إذا كان موجوداً، نجلب بياناته الحالية
-      final existingUser = await authService.getCurrentUser();
-      if (existingUser != null) return existingUser;
-      throw Exception("Error retrieving user data");
-    } else {
-      // 3. إذا كان مستخدماً جديداً، نقوم بإنشائه وحفظه
-      final newUser = UserModel(
-        id: user.uid,
-        username: username,
-        phoneNumber: user.phoneNumber ?? '',
-        userRole: role, // 'user' or 'owner' من الـ UI
-        favoraitsPlaces: [],
-        ownedPlaces: [],
-        bookedPlaces: [],
-        offers: [],
-        history: [],
-        points: 0,
+      final existing = await _authService.getCurrentUser();
+      if (existing != null) return existing;
+      throw Exception(
+        'verifyOTP: user document missing despite checkIfUserExists returning true',
       );
-
-      await authService.addUser(newUser);
-      return newUser;
     }
-  }
 
-  @override
-  Future<UserModel?> checkAuthStatus() async {
-    // بيستخدمها الـ AuthCubit عشان يحدد يفتح أنهي شاشة
-    return await authService.getCurrentUser();
-  }
+    // Brand-new account — create and persist the Firestore document.
+    final newUser = UserModel(
+      id: firebaseUser.uid,
+      username: username,
+      phoneNumber: firebaseUser.phoneNumber ?? '',
+      userRole: role,
+      favoraitsPlaces: const [],
+      ownedPlaces: const [],
+      bookedPlaces: const [],
+      offers: const [],
+      history: const [],
+      points: 0,
+    );
 
-  @override
-  Future<void> logout() async {
-    // تسجيل خروج نظيف
-    await authService.signOut();
-  }
-
-  @override
-  Future<void> loginWithPhoneNumber({
-    required String phoneNumber,
-    required Function(String verId) onCodeSent,
-    required Function(String error) onError,
-  }) async {
-    // 1. تنظيف الرقم
-    String cleanNumber = phoneNumber.trim();
-    if (cleanNumber.startsWith('0')) cleanNumber = cleanNumber.substring(1);
-    String finalNumber = '+20$cleanNumber';
-
-    try {
-      // 2. التشيك: هل الرقم موجود؟
-      bool exists = await authService.isPhoneNumberExists(finalNumber);
-      if (!exists) {
-        // لو مش موجود، بنقوله "يا عم السولي الرقم ده مش عندنا، روح سجل الأول"
-        onError('userNotFound');
-        return;
-      }
-
-      // 3. لو موجود، ابعت الـ OTP عشان يكمل الـ Login
-      await authService.sendOTP(
-        phoneNumber: finalNumber,
-        onCodeSent: onCodeSent,
-        onError: onError,
-      );
-    } catch (e) {
-      onError('error');
-    }
+    await _authService.addUser(newUser);
+    return newUser;
   }
 }

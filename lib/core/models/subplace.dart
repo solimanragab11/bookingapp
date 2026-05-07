@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
 
 class SubPlace {
   final String id;
@@ -7,7 +8,7 @@ class SubPlace {
   final int playersNumber;
 
   Map<String, List<String>> freeTimeSlots;
-  Map<String, List<String>> bookedTimeSlots;
+  List<BookingIdModel> bookedTimeSlots;
 
   SubPlace({
     required this.id,
@@ -15,28 +16,19 @@ class SubPlace {
     required this.pricePerHour,
     required this.playersNumber,
     Map<String, List<String>>? freeTimeSlots,
-    Map<String, List<String>>? bookedTimeSlots,
-  }) : freeTimeSlots =
-           freeTimeSlots ?? _generateNext10DaysSlots(), // نستخدم ميثود موحدة
-       bookedTimeSlots = bookedTimeSlots ?? {};
+    List<BookingIdModel>? bookedTimeSlots,
+  }) : freeTimeSlots = freeTimeSlots ?? _generateNext10DaysSlots(),
+       bookedTimeSlots = bookedTimeSlots ?? [];
 
-  // ميثود ثابتة لتوليد الساعات بالشكل اللي بتحبه "0:00 - 1:00"
   static Map<String, List<String>> _generateNext10DaysSlots() {
     final Map<String, List<String>> slots = {};
     final now = DateTime.now();
 
     for (int i = 0; i < 10; i++) {
-      // 1. حساب تاريخ اليوم (اليوم الحالي + i)
       final date = now.add(Duration(days: i));
-
-      // 2. تنسيق التاريخ (E: اسم اليوم اختصار، d/M: اليوم والشهر)
-      // النتيجة هتكون مثلاً: Sunday 12/02
       final String dayKey = DateFormat('EEEE dd/MM').format(date).toLowerCase();
-
-      // 3. توليد الساعات لهذا اليوم
       slots[dayKey] = List<String>.generate(24, (h) => "$h:00 - ${h + 1}:00");
     }
-
     return slots;
   }
 
@@ -47,20 +39,23 @@ class SubPlace {
       pricePerHour: (json["pricePerHour"] as num? ?? 0.0).toDouble(),
       playersNumber: (json["playersNumber"] as num? ?? 0).toInt(),
 
-      // هنا لو الداتا null من السيرفر، هيولد الساعات بالشكل الجديد فوراً
       freeTimeSlots:
-          (json["freeTimeSlots"] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, List<String>.from(v ?? [])))
-              .cast<String, List<String>>() ??
+          (json["freeTimeSlots"] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, List<String>.from(v ?? [])),
+          ) ??
           _generateNext10DaysSlots(),
 
+      // هنا التعديل: التأكد من تحويل كل عنصر باستخدام FromJson المحدث في BookingIdModel
       bookedTimeSlots:
-          (json["bookedTimeSlots"] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, List<String>.from(v ?? [])))
-              .cast<String, List<String>>() ??
-          {},
+          (json["bookedTimeSlots"] as List?)
+              ?.map(
+                (item) => BookingIdModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
       "id": id,
@@ -68,7 +63,8 @@ class SubPlace {
       "pricePerHour": pricePerHour,
       "playersNumber": playersNumber,
       "freeTimeSlots": freeTimeSlots,
-      "bookedTimeSlots": bookedTimeSlots,
+      // الـ toJson هنا هتنادي أوتوماتيكياً على الـ toJson المحدثة اللي فيها الـ bookedBy
+      "bookedTimeSlots": bookedTimeSlots.map((item) => item.toJson()).toList(),
     };
   }
 
@@ -78,7 +74,7 @@ class SubPlace {
     double? pricePerHour,
     int? playersNumber,
     Map<String, List<String>>? freeTimeSlots,
-    Map<String, List<String>>? bookedTimeSlots,
+    List<BookingIdModel>? bookedTimeSlots,
   }) {
     return SubPlace(
       id: id ?? this.id,

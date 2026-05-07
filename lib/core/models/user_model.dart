@@ -7,7 +7,7 @@ class UserModel {
   final String username;
   final String userRole;
   final String phoneNumber;
-  final List<Place> favoraitsPlaces;
+  final List<PlaceModel> favoraitsPlaces;
   final List<String> ownedPlaces;
   final List<BookingModel> bookedPlaces;
   final List<Offer> offers;
@@ -35,7 +35,7 @@ class UserModel {
       userRole: json['userRole'] ?? '',
       phoneNumber: json['phoneNumber'] ?? '',
       favoraitsPlaces: (json['favoraitsPlaces'] as List<dynamic>? ?? [])
-          .map((item) => Place.fromJson(item))
+          .map((item) => PlaceModel.fromJson(item))
           .toList(),
       ownedPlaces: (json['ownedPlaces'] as List<dynamic>? ?? [])
           .map((item) => item.toString())

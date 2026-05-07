@@ -15,7 +15,7 @@ class CustButton extends StatefulWidget {
   final double h;
   final double w;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String size;
   final String lable;
 

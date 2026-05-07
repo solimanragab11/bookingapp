@@ -1,27 +1,30 @@
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
 
-// ده الـ Interface اللي الـ Cubit بيفهمه
+/// The contract that every auth implementation must fulfil.
+/// Cubits depend only on this — never on Firebase directly.
 abstract class AuthRepo {
-  AuthRepo(AuthService authService);
-
+  /// Sends a one-time password for a **new** registration.
+  /// Validates that the phone number does NOT already exist.
   Future<void> sendOTP({
     required String phoneNumber,
-    required Function(String verId) onCodeSent,
-    required Function(String error) onError,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
   });
 
+  /// Sends a one-time password for an **existing** user login.
+  /// Validates that the phone number DOES already exist.
+  Future<void> loginWithPhoneNumber({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
+  });
+
+  /// Verifies the OTP code.
+  /// [username] and [role] are only used when creating a brand-new account.
   Future<UserModel> verifyOTP({
     required String verificationId,
     required String smsCode,
     required String username,
     required String role,
   });
-  Future<void> loginWithPhoneNumber({
-    required String phoneNumber,
-    required Function(String verId) onCodeSent,
-    required Function(String error) onError,
-  });
 }
-
-// أي ميثود تانية محتاجها...

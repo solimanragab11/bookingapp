@@ -2,30 +2,41 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
+import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
+import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
+import 'package:remaking_booking_app_trail2/core/models/dashboard_states_model.dart';
+import 'package:remaking_booking_app_trail2/core/models/offer.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:path/path.dart'
-    as p; // بنستخدمه عشان نجيب الـ extension (jpg/png)
+import 'package:path/path.dart' as p;
+import 'package:remaking_booking_app_trail2/core/models/user_model.dart'; // بنستخدمه عشان نجيب الـ extension (jpg/png)
 
 class FirestoreOwnerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirestoreOwnerService(this._authService);
+  final AuthService _authService;
+  final _storage = FirebaseStorage.instance;
 
   // إضافة مكان جديد
-  Future<void> addPlace(Place place) async {
+  Future<void> addPlace(PlaceModel place) async {
     await _firestore.collection('places').doc(place.id).set(place.toJson());
   }
 
   // جلب الأماكن الخاصة بـ Owner معين
-  Future<List<Place>> getPlacesByOwner(String ownerId) async {
-    // ملحوظة لعمي السولي: هنا بنستخدم الـ ownerId اللي جوه الـ Place model
+  Future<List<PlaceModel>> getPlacesByOwner() async {
+    // ملحوظة لعمي السولي: هنا بنستخدم الـ ownerId اللي جوه الـ PlaceModel model
+    final ownerId = await _authService.getCurrentUserId();
+
     QuerySnapshot querySnapshot = await _firestore
         .collection('places')
         .where('ownerId', isEqualTo: ownerId)
         .get();
 
     return querySnapshot.docs
-        .map((doc) => Place.fromJson(doc.data() as Map<String, dynamic>))
+        .map((doc) => PlaceModel.fromJson(doc.data() as Map<String, dynamic>))
         .toList();
   }
 
@@ -135,8 +146,6 @@ class FirestoreOwnerService {
     });
   }
 
-  final _storage = FirebaseStorage.instance;
-
   static downscaleImage(File imageFile) async {
     try {
       final tempDir = await getTemporaryDirectory();
@@ -158,7 +167,7 @@ class FirestoreOwnerService {
       return result;
     } catch (e) {
       // هنا هيطبعلك السبب الحقيقي لو لسه فيه مشكلة
-      print("Error during DownScaling: $e");
+      debugPrint("Error during DownScaling: $e");
       return null;
     }
   }
@@ -182,20 +191,22 @@ class FirestoreOwnerService {
       return downloadUrl;
     } catch (e) {
       // هنا هيطبعلك السبب الحقيقي لو لسه فيه مشكلة
-      print("Error during upload: $e");
+      debugPrint("Error during upload: $e");
       return null;
     }
   }
 
   // 1. جلب كل أماكن صاحب المكان ده بس
-  Stream<List<Place>> getOwnerPlaces(String ownerId) {
-    return _firestore
+  Stream<List<PlaceModel>> getOwnerPlaces() async* {
+    final ownerId = await _authService.getCurrentUserId();
+    yield* _firestore
         .collection('places')
         .where('ownerId', isEqualTo: ownerId)
-        .snapshots()
+        .snapshots() // دي اللي بتخليها Stream
         .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => Place.fromJson(doc.data())).toList(),
+          (snapshot) => snapshot.docs
+              .map((doc) => PlaceModel.fromJson(doc.data()))
+              .toList(),
         );
   }
 
@@ -216,27 +227,6 @@ class FirestoreOwnerService {
     }
 
     return {'revenue': totalRevenue, 'bookingsCount': totalBookings};
-  }
-
-  Future<void> bookTimeSlot({
-    required String placeId,
-    required int subPlaceIndex, // رقم الملعب (0, 1, 2...)
-    required String day, // "friday"
-    required String timeSlot, // "0:00"
-  }) async {
-    final docRef = _firestore.collection('places').doc(placeId);
-
-    // بنستخدم الـ dot notation عشان نوصل للحقل اللي جوه الـ Map
-    await docRef.update({
-      // 1. نشيل الساعة من المتاح
-      'subPlaces.$subPlaceIndex.freeTimeSlots.$day': FieldValue.arrayRemove([
-        timeSlot,
-      ]),
-      // 2. نضيف الساعة في المحجوز
-      'subPlaces.$subPlaceIndex.bookedTimeSlots.$day': FieldValue.arrayUnion([
-        timeSlot,
-      ]),
-    });
   }
 
   // عملية الإلغاء: نرجع الساعة للمتاح
@@ -263,13 +253,13 @@ class FirestoreOwnerService {
     required String subPlaceId,
     required Map<String, List<String>> selectedSlots,
     required String userId,
+    required String orderId,
   }) async {
     final DocumentReference placeRef = _firestore
         .collection('places')
         .doc(placeId);
 
     return await _firestore.runTransaction((transaction) async {
-      // جلب بيانات المكان اللحظية
       DocumentSnapshot placeSnapshot = await transaction.get(placeRef);
 
       if (!placeSnapshot.exists) {
@@ -279,33 +269,38 @@ class FirestoreOwnerService {
       final placeData = placeSnapshot.data() as Map<String, dynamic>;
       List<dynamic> subPlacesData = List.from(placeData['subPlaces'] ?? []);
 
-      // البحث عن الملعب الفرعي أو الـ Section
       final subPlaceIndex = subPlacesData.indexWhere(
         (sp) => sp['id'] == subPlaceId,
       );
-      print(subPlaceId);
-
       if (subPlaceIndex == -1) {
         throw Exception('الملعب أو القسم غير موجود!');
       }
-      print(subPlaceIndex);
 
       final subPlaceData = subPlacesData[subPlaceIndex];
 
-      // تحويل المواعيد الحالية لـ Maps سهلة التعامل
+      // --- التعديل هنا: تحويل البيانات للهيكل الجديد ---
       Map<String, List<String>> freeTimeSlots = _parseSlots(
         subPlaceData['freeTimeSlots'],
       );
-      Map<String, List<String>> bookedTimeSlots = _parseSlots(
-        subPlaceData['bookedTimeSlots'],
-      );
 
-      // التأكد إن كل المواعيد المطلوبة لسه "متاحة" ومتحجزتش في النص
+      // تحويل الـ List القادمة من Firestore لموديلات
+      List<BookingIdModel> bookedTimeSlots =
+          (subPlaceData['bookedTimeSlots'] as List? ?? [])
+              .map(
+                (item) => BookingIdModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList();
+
+      // التأكد إن كل المواعيد المطلوبة لسه "متاحة"
       for (var entry in selectedSlots.entries) {
         String day = entry.key;
         for (String slot in entry.value) {
           bool isFree = freeTimeSlots[day]?.contains(slot) ?? false;
-          bool isAlreadyBooked = bookedTimeSlots[day]?.contains(slot) ?? false;
+
+          // التحقق: هل الساعة دي موجودة في أي حجز قديم؟
+          bool isAlreadyBooked = bookedTimeSlots.any(
+            (b) => b.slots[day]?.contains(slot) ?? false,
+          );
 
           if (!isFree || isAlreadyBooked) {
             throw Exception(
@@ -314,27 +309,35 @@ class FirestoreOwnerService {
           }
         }
       }
+      final UserModel user =
+          await _authService.getUserById(userId) as UserModel;
+      // تنفيذ الحجز: نقل المواعيد
+      // بنعمل موديل جديد للحجز الحالي
+      BookingIdModel newBooking = BookingIdModel(
+        bookingId: orderId,
+        slots: selectedSlots,
+        bookedBy: 'owner',
+        bookername: user.username,
+      );
 
-      // تنفيذ الحجز: نقل المواعيد من "المتاحة" إلى "المحجوزة"
       for (var entry in selectedSlots.entries) {
         String day = entry.key;
         for (String slot in entry.value) {
           freeTimeSlots[day]?.remove(slot);
-
-          if (bookedTimeSlots[day] == null) {
-            bookedTimeSlots[day] = [];
-          }
-          bookedTimeSlots[day]!.add(slot);
-          bookedTimeSlots[day]!.sort(); // ترتيب المواعيد
         }
       }
 
+      // إضافة الحجز الجديد للقائمة
+      bookedTimeSlots.add(newBooking);
+
       // تحديث البيانات في Firestore
       subPlacesData[subPlaceIndex]['freeTimeSlots'] = freeTimeSlots;
-      subPlacesData[subPlaceIndex]['bookedTimeSlots'] = bookedTimeSlots;
-      print(subPlacesData[subPlaceIndex]['bookedTimeSlots']);
+      // تحويل لستة الموديلات لـ JSON
+      subPlacesData[subPlaceIndex]['bookedTimeSlots'] = bookedTimeSlots
+          .map((e) => e.toJson())
+          .toList();
+
       transaction.update(placeRef, {'subPlaces': subPlacesData});
-      print("update done");
     });
   }
 
@@ -349,5 +352,277 @@ class FirestoreOwnerService {
   // 4. إلغاء حجز
   Future<void> deleteBooking(String bookingId) async {
     await _firestore.collection('bookings').doc(bookingId).delete();
+  }
+
+  Future<String?> getBookingIdByDetails({
+    required String placeId,
+    required String subPlaceId,
+    required String dayKey,
+    required List<String> selectedSlots,
+  }) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // بنبحث في كولكشن الـ bookings
+      // لازم الفلتر يتطابق مع الـ place والـ subPlace
+      final querySnapshot = await firestore
+          .collection('bookings')
+          .where('placeId', isEqualTo: placeId)
+          .where('subPlaceId', isEqualTo: subPlaceId)
+          .get();
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final Map<String, dynamic> timeSlots = data['timeSlots'] ?? {};
+
+        // بنشوف هل اليوم ده موجود في الحجز ده؟
+        if (timeSlots.containsKey(dayKey)) {
+          List<dynamic> slotsInDoc = timeSlots[dayKey];
+
+          // بنقارن الساعات اللي اليوزر اختارها بالساعات اللي في الدوكومنت
+          // لو الساعات اللي اخترناها هي جزء من الحجز ده أو هي هي
+          bool isMatch = selectedSlots.every(
+            (slot) => slotsInDoc.contains(slot),
+          );
+
+          if (isMatch) {
+            return doc.id; // لقينا الـ ID المطلوب
+          }
+        }
+      }
+      return null; // ملقيناش حجز متطابق
+    } catch (e) {
+      debugPrint("Error fetching booking ID: $e");
+      return null;
+    }
+  }
+
+  // inside owner_service.dart
+
+  Future<bool> cancelBookingTransaction({
+    required String placeId,
+    required int subPlaceIndex,
+    required String dayKey,
+    required List<String> slotsToCancel,
+  }) async {
+    try {
+      // تحديد وقت أقصى للعملية (15 ثانية) عشان الـ UI ميفضلش معلق لو النت فصل
+      return await _firestore
+          .runTransaction((transaction) async {
+            DocumentReference placeRef = _firestore
+                .collection('places')
+                .doc(placeId);
+            DocumentSnapshot placeDoc = await transaction.get(placeRef);
+
+            if (!placeDoc.exists) return false;
+
+            Map<String, dynamic> placeData =
+                placeDoc.data() as Map<String, dynamic>;
+            List<dynamic> subPlaces = List.from(placeData['subPlaces']);
+            Map<String, dynamic> targetSubPlace = Map.from(
+              subPlaces[subPlaceIndex],
+            );
+
+            // --- تعديل المتاح (Free Slots) ---
+            Map<String, dynamic> freeSlots = Map.from(
+              targetSubPlace['freeTimeSlots'] ?? {},
+            );
+            List<dynamic> currentDayFreeSlots = List.from(
+              freeSlots[dayKey] ?? [],
+            );
+
+            // نتاكد إننا مش بنضيف ساعات موجودة أصلاً عشان ميبقاش فيه تكرار
+            for (var slot in slotsToCancel) {
+              if (!currentDayFreeSlots.contains(slot)) {
+                currentDayFreeSlots.add(slot);
+              }
+            }
+            freeSlots[dayKey] = currentDayFreeSlots;
+            targetSubPlace['freeTimeSlots'] = freeSlots;
+
+            // --- تعديل المحجوز (Booked Slots) والبحث عن المستند ---
+            List<dynamic> bookedSlots = List.from(
+              targetSubPlace['bookedTimeSlots'] ?? [],
+            );
+            String? foundBookingId;
+
+            bookedSlots.removeWhere((bookingMap) {
+              var slotsInMap = bookingMap['slots']?[dayKey];
+              if (slotsInMap is List) {
+                bool matches = slotsInMap.any(
+                  (slot) => slotsToCancel.contains(slot),
+                );
+                if (matches) foundBookingId = bookingMap['bookingId'];
+                return matches;
+              }
+              return false;
+            });
+
+            targetSubPlace['bookedTimeSlots'] = bookedSlots;
+            subPlaces[subPlaceIndex] = targetSubPlace;
+
+            // --- تحديث مستند الحجز الأصلي ---
+            if (foundBookingId != null) {
+              DocumentReference bookingRef = _firestore
+                  .collection('bookings')
+                  .doc(foundBookingId!);
+              DocumentSnapshot bookingDoc = await transaction.get(bookingRef);
+
+              if (bookingDoc.exists) {
+                Map<String, dynamic> bData =
+                    bookingDoc.data() as Map<String, dynamic>;
+                Map<String, dynamic> timeSlots = Map.from(
+                  bData['timeSlots'] ?? {},
+                );
+                List<dynamic> daySlots = List.from(timeSlots[dayKey] ?? []);
+
+                daySlots.removeWhere((s) => slotsToCancel.contains(s));
+
+                if (daySlots.isEmpty) {
+                  timeSlots.remove(dayKey);
+                } else {
+                  timeSlots[dayKey] = daySlots;
+                }
+
+                if (timeSlots.isEmpty) {
+                  transaction.delete(bookingRef);
+                } else {
+                  transaction.update(bookingRef, {'timeSlots': timeSlots});
+                }
+              }
+            }
+
+            // التحديث النهائي للمكان
+            transaction.update(placeRef, {'subPlaces': subPlaces});
+            return true;
+          })
+          .timeout(
+            const Duration(seconds: 15),
+          ); // لو عدى 15 ثانية، ارمي Exception وفك الـ Loading
+    } catch (e) {
+      print("خطأ في الإلغاء: $e");
+      return false;
+    }
+  }
+
+  Future<void> activateOffer({
+    required String placeId,
+    required String subPlaceId,
+    required Offer offer,
+  }) async {
+    final docRef = FirebaseFirestore.instance.collection('places').doc(placeId);
+
+    // هنجيب الداتا الحالية عشان نحدث الـ SubPlace المعين جوه اللستة
+    final doc = await docRef.get();
+    if (doc.exists) {
+      List subPlaces = doc.data()?['subPlaces'] ?? [];
+      int index = subPlaces.indexWhere((s) => s['id'] == subPlaceId);
+
+      if (index != -1) {
+        // تحديث حقل العرض و الـ isOffer
+        subPlaces[index]['offer'] = offer.toJson();
+        subPlaces[index]['isOffer'] = true;
+
+        await docRef.update({'subPlaces': subPlaces});
+      }
+    }
+  }
+
+  Future<List<PlaceModel>> getAllPlaces() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('places')
+        .get();
+    return snapshot.docs.map((doc) => PlaceModel.fromJson(doc.data())).toList();
+  }
+
+  Future<void> addBooking(BookingModel booking) async {
+    try {
+      await _firestore
+          .collection('bookings')
+          .doc(booking.id)
+          .set(booking.toJson());
+    } catch (e) {
+      debugPrint('Error adding bossoking: $e');
+      rethrow;
+    }
+  }
+
+  Future<String?> getUserIdByPhoneNumber(String phoneNumber) async {
+    try {
+      // بنعمل Query على كولكشن الـ users وبندور على الحقل اللي فيه رقم التليفون
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where(
+            'phoneNumber',
+            isEqualTo: phoneNumber,
+          ) // تأكد إن اسم الحقل في فيربيز 'phone'
+          .limit(1) // بنكتفي بأول نتيجة تطلع
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // بنرجع الـ Document ID اللي هو الـ UID بتاع المستخدم
+        return querySnapshot.docs.first.id;
+      } else {
+        // لو مفيش مستخدم بالرقم ده
+        return null;
+      }
+    } catch (e) {
+      // في حالة حدوث خطأ في الاتصال أو غيره
+      debugPrint("Error fetching userId: $e");
+      return null;
+    }
+  }
+
+  // ميثود بتراقب مكان واحد فقط لحظة بلحظة
+  Stream<PlaceModel> listenToPlaceById(String placeId) {
+    return _firestore
+        .collection('places')
+        .doc(placeId)
+        .snapshots()
+        .map((doc) => PlaceModel.fromJson(doc.data() as Map<String, dynamic>));
+  }
+
+  Future<DashboardStats> calculateDashboardStats(String placeId) async {
+    final snapshot = await _firestore
+        .collection('bookings')
+        .where('placeId', isEqualTo: placeId)
+        .get();
+
+    double appRevenue = 0;
+    double manualRevenue = 0;
+    int appCount = 0;
+    int manualCount = 0;
+    int totalHours = 0;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final String bookedBy = data['bookedBy'] ?? 'user';
+      final double totalPrice = (data['totalPrice'] ?? 0).toDouble();
+
+      // حساب الساعات من الـ timeSlots Map
+      final Map<String, dynamic> timeSlots = data['timeSlots'] ?? {};
+      int hoursInThisBooking = 0;
+      timeSlots.forEach((key, value) {
+        if (value is List) hoursInThisBooking += value.length;
+      });
+
+      totalHours += hoursInThisBooking;
+
+      if (bookedBy == 'owner') {
+        manualCount++;
+        manualRevenue += totalPrice;
+      } else {
+        appCount++;
+        appRevenue += totalPrice;
+      }
+    }
+
+    return DashboardStats(
+      totalAppRevenue: appRevenue,
+      totalManualRevenue: manualRevenue,
+      appReservationsCount: appCount,
+      manualReservationsCount: manualCount,
+      totalBookedHours: totalHours,
+    );
   }
 }

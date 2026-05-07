@@ -1,95 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
+import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_states.dart';
+import 'package:remaking_booking_app_trail2/features/owner/data/data_sources/firestore_owner_service.dart';
+import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/logic/schedule_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/logic/schedule_state.dart';
+import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/booking_summary_dialog.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/calendar_strip.dart';
+import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/place_schedule_header.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/schedule_action_bar.dart';
+import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/sub_place_selector.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/time_slots_list.dart';
+// تأكد من استيراد الـ Service لو كنت بتستخدمها هنا
+// import 'package:remaking_booking_app_trail2/features/owner/data/owner_service.dart';
 
 class PlaceScheduleScreen extends StatelessWidget {
-  final Place place;
-  const PlaceScheduleScreen({super.key, required this.place});
+  final String placeId; // غيرنا دي لـ ID بس عشان نضمن الـ Live Data
+
+  const PlaceScheduleScreen({super.key, required this.placeId});
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
     return BlocProvider(
-      create: (_) => ScheduleCubit(),
+      // هنا بننشئ الكوبيت وبنقوله ابدأ راقب المكان ده بالـ ID بتاعه فوراً
+      create: (context) => ScheduleCubit(
+        FirestoreOwnerService(AuthService()),
+        OwnerRepoImpl(FirestoreOwnerService(AuthService())),
+      )..startWatchingPlace(placeId),
       child: Scaffold(
         backgroundColor: ColorManager.noirDeVigne,
         body: Stack(
           children: [
             BackGround(h: size.height, w: size.width),
             SafeArea(
-              child:
-                  BlocBuilder<ManageBookingPlaceCubit, ManageBookingPlaceState>(
-                    builder: (context, state) {
-                      final currentPlace = (state is ManagePlaceLoaded)
-                          ? state.places.firstWhere(
-                              (p) => p.id == place.id,
-                              orElse: () => place,
-                            )
-                          : place;
+              child: BlocConsumer<ScheduleCubit, ScheduleState>(
+                listener: (context, state) {
+                  // هنا بنراقب لو حصل نجاح في الحجز أو الإلغاء اليدوي
+                  if (state.status == ScheduleStatus.actionSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(context.tr('operation_success')),
+                        backgroundColor: ColorManager.emeraldGreen,
+                      ),
+                    );
+                  } else if (state.status == ScheduleStatus.error) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          context.tr(state.errorMessage ?? 'error'),
+                        ),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  // حالة التحميل لأول مرة
+                  if (state.status == ScheduleStatus.loading &&
+                      state.currentPlace == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: ColorManager.wasabi,
+                      ),
+                    );
+                  }
 
-                      return BlocBuilder<ScheduleCubit, ScheduleState>(
-                        builder: (context, scheduleState) {
-                          return Column(
-                            children: [
-                              _buildHeader(context),
-                              CalendarStrip(
-                                place: currentPlace,
-                                selectedDate: scheduleState.selectedDate,
-                                selectedSubPlaceIndex:
-                                    scheduleState.selectedSubPlaceIndex,
-                                onDateSelected: (date) => context
-                                    .read<ScheduleCubit>()
-                                    .selectDate(date),
-                              ),
-                              _buildSubPlaceSelector(
-                                context,
-                                currentPlace.subPlaces.length,
-                                scheduleState.selectedSubPlaceIndex,
-                              ),
-                              Expanded(
-                                child: TimeSlotsList(
-                                  place: currentPlace,
-                                  selectedDate: scheduleState.selectedDate,
-                                  subPlaceIndex:
-                                      scheduleState.selectedSubPlaceIndex,
-                                  selectedSlots: scheduleState.selectedSlots,
-                                  onSlotTap: (slot, isBooked) => context
-                                      .read<ScheduleCubit>()
-                                      .toggleSlot(slot, isBooked),
-                                ),
-                              ),
-                              if (scheduleState.hasSelection &&
-                                  scheduleState.isSelectingBooked != null)
-                                ScheduleActionBar(
-                                  place: currentPlace,
-                                  selectedCount:
-                                      scheduleState.selectedSlots.length,
-                                  isSelectingBooked:
-                                      scheduleState.isSelectingBooked!,
-                                  selectedDate: scheduleState.selectedDate,
-                                  selectedSubPlaceIndex:
-                                      scheduleState.selectedSubPlaceIndex,
-                                  selectedSlots: scheduleState.selectedSlots,
-                                  onClearSelection: () => context
-                                      .read<ScheduleCubit>()
-                                      .clearSelection(),
-                                ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
+                  // لو الداتا مجاتش خالص (Error)
+                  if (state.currentPlace == null) {
+                    return Center(
+                      child: Text(
+                        context.tr('place_not_found'),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    );
+                  }
+
+                  final currentPlace = state.currentPlace!;
+
+                  return Column(
+                    children: [
+                      PlaceScheduleHeader(placeName: currentPlace.name),
+                      Expanded(
+                        child: _buildScheduleBody(context, currentPlace, state),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -97,80 +100,115 @@ class PlaceScheduleScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios, color: ColorManager.wasabi),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  place.name,
-                  style: const TextStyle(
-                    color: ColorManager.wasabi,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Text(
-                  "إدارة الحجوزات والملاعب",
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ],
+  Widget _buildScheduleBody(
+    BuildContext context,
+    PlaceModel currentPlace,
+    ScheduleState state,
+  ) {
+    final scheduleCubit = context.read<ScheduleCubit>();
+
+    return Stack(
+      children: [
+        Column(
+          children: [
+            CalendarStrip(
+              place: currentPlace,
+              selectedDate: state.selectedDate,
+              selectedSubPlaceIndex: state.selectedSubPlaceIndex,
+              onDateSelected: scheduleCubit.selectDate,
             ),
-          ),
-        ],
-      ),
+            SubPlaceSelector(
+              count: currentPlace.subPlaces.length,
+              selectedIndex: state.selectedSubPlaceIndex,
+              onTap: scheduleCubit.selectSubPlace,
+            ),
+            Expanded(
+              child: TimeSlotsList(
+                place: currentPlace,
+                selectedDate: state.selectedDate,
+                subPlaceIndex: state.selectedSubPlaceIndex,
+                selectedSlots: state.selectedSlots,
+                activeBookingId: state.activeBookingId,
+                onSlotTap: (slot, isBooked, _) {
+                  scheduleCubit.toggleSlot(slot, isBooked, place: currentPlace);
+                },
+              ),
+            ),
+            if (state.hasSelection)
+              ScheduleActionBar(
+                selectedCount: state.selectedSlots.length,
+                isSelectingBooked: state.isSelectingBooked ?? false,
+                onClearSelection: scheduleCubit.clearSelection,
+                onActionPressed: () =>
+                    _openSummaryDialog(context, currentPlace, state),
+              ),
+          ],
+        ),
+        // لودينج خفيف يظهر فوق الشاشة وقت تنفيذ الأكشن (حجز/إلغاء)
+        if (state.status == ScheduleStatus.loading) const _LoadingOverlay(),
+      ],
     );
   }
 
-  // --- اختيار الملعب (Sub-place) ---
-  Widget _buildSubPlaceSelector(
+  void _openSummaryDialog(
     BuildContext context,
-    int subPlacesCount,
-    int selectedIndex,
+    PlaceModel currentPlace,
+    ScheduleState state,
   ) {
-    return SizedBox(
-      height: 45,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: subPlacesCount,
-        itemBuilder: (context, index) {
-          bool isSelected = selectedIndex == index;
-          return GestureDetector(
-            onTap: () => context.read<ScheduleCubit>().selectSubPlace(index),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? ColorManager.egyptianEarth
-                    : ColorManager.emeraldGreen,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: isSelected ? Colors.transparent : Colors.white24,
-                ),
-              ),
-              child: Text(
-                "ملعب ${index + 1}",
-                style: TextStyle(
-                  color: isSelected ? Colors.black : Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+    final bool isCancellation = state.isSelectingBooked ?? false;
+    final scheduleCubit = context.read<ScheduleCubit>();
+
+    BookingSummaryDialog.show(
+      context: context,
+      place: currentPlace,
+      selectedSlots: state.selectedSlots,
+      totalPrice: _calculateTotal(currentPlace, state),
+      mood: isCancellation ? DialogMood.cancellation : DialogMood.booking,
+      onConfirmed: ({required String phone, required double deposit}) {
+        if (isCancellation) {
+          scheduleCubit.cancelManualBooking(
+            placeId: currentPlace.id,
+            subPlaceIndex: state.selectedSubPlaceIndex,
+            slots: state.selectedSlots,
+            bookingDate: state.selectedDate,
           );
-        },
+        } else {
+          scheduleCubit.addManualBooking(
+            bookingDate: state.selectedDate,
+            userPhone: phone,
+            placeId: currentPlace.id,
+            subPlaceId:
+                state.currentPlace!.subPlaces[state.selectedSubPlaceIndex].id,
+            selectedSlots: state.selectedSlots,
+            pricePerHour:
+                (currentPlace
+                        .subPlaces[state.selectedSubPlaceIndex]
+                        .pricePerHour)
+                    .toDouble(),
+            deposit: deposit,
+          );
+        }
+      },
+    );
+  }
+
+  double _calculateTotal(PlaceModel place, ScheduleState state) {
+    final subPlace = place.subPlaces[state.selectedSubPlaceIndex];
+    final double price = (subPlace.pricePerHour).toDouble();
+    return state.selectedSlots.length * price;
+  }
+}
+
+class _LoadingOverlay extends StatelessWidget {
+  const _LoadingOverlay();
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black45,
+        child: Center(
+          child: CircularProgressIndicator(color: ColorManager.wasabi),
+        ),
       ),
     );
   }

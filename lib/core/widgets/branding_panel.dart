@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:flutter/material.dart';
 

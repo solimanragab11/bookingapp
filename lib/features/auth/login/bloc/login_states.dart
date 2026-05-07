@@ -1,27 +1,67 @@
+import 'package:equatable/equatable.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
 
-abstract class LoginState {}
+abstract class LoginState extends Equatable {
+  const LoginState();
 
-class LoginInitial extends LoginState {}
-
-// حالات إرسال كود الـ OTP
-class LoginSendOTPLoading extends LoginState {}
-
-class LoginCodeSent extends LoginState {
-  final String verificationId;
-  LoginCodeSent(this.verificationId);
+  @override
+  List<Object?> get props => [];
 }
 
-// حالات التحقق من الكود (Verify)
-class LoginLoading extends LoginState {}
+class LoginInitial extends LoginState {
+  const LoginInitial();
+}
+
+/// Waiting for Firebase to send the SMS.
+class LoginSendOTPLoading extends LoginState {
+  const LoginSendOTPLoading();
+}
+
+/// SMS has been sent; stores the verificationId for the next step.
+class LoginCodeSent extends LoginState {
+  final String verificationId;
+
+  const LoginCodeSent(this.verificationId);
+
+  @override
+  List<Object?> get props => [verificationId];
+}
+
+/// Countdown active — user must wait before requesting a new code.
+class LoginResendCountdown extends LoginState {
+  final int seconds;
+
+  const LoginResendCountdown(this.seconds);
+
+  @override
+  List<Object?> get props => [seconds];
+}
+
+/// Countdown finished — user may request a new code.
+class LoginResendEnabled extends LoginState {
+  const LoginResendEnabled();
+}
+
+/// Waiting for Firebase to verify the OTP the user entered.
+class LoginLoading extends LoginState {
+  const LoginLoading();
+}
 
 class LoginSuccess extends LoginState {
   final UserModel user;
-  LoginSuccess(this.user);
+
+  const LoginSuccess(this.user);
+
+  @override
+  List<Object?> get props => [user];
 }
 
-// حالة الفشل (سواء الرقم مش موجود أو الكود غلط)
 class LoginError extends LoginState {
-  final String message; // بنخزن هنا الـ Key بتاع الـ Localization
-  LoginError(this.message);
+  /// A localization key (e.g. 'otpError', 'userNotFound').
+  final String messageKey;
+
+  const LoginError(this.messageKey);
+
+  @override
+  List<Object?> get props => [messageKey];
 }

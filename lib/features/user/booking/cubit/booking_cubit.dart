@@ -1,20 +1,27 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:uuid/uuid.dart';
+import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
 import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_states.dart';
+import 'package:uuid/uuid.dart';
 
 class BookingCubit extends Cubit<BookingState> {
-  // استخدام الـ Service الجديدة
   final BookingService _bookingService;
-  Place? _place;
+  final AuthService _authService;
+  PlaceModel? _place;
   SubPlace? _subPlace;
 
-  BookingCubit(this._bookingService) : super(BookingInitial());
+  BookingCubit(this._bookingService, this._authService)
+    : super(BookingInitial());
 
-  void initializeBooking({required Place place, required SubPlace subPlace}) {
+  // 1. تهيئة الحجز
+  void initializeBooking({
+    required PlaceModel place,
+    required SubPlace subPlace,
+  }) {
     _place = place;
     _subPlace = subPlace;
     final firstDay = subPlace.freeTimeSlots.keys.firstOrNull;
@@ -23,24 +30,36 @@ class BookingCubit extends Cubit<BookingState> {
       BookingDataState(
         selectedDay: firstDay,
         selectedBookingSlots: {},
-        provisionalTotalPrice: 0.0,
-        requiredDeposit: 0.0,
-        minRequiredDeposit: 0.0,
+        originalTotalAmount: 0.0,
+        finalAmount: 0.0,
         paidAmount: 0.0,
         remainingAmount: 0.0,
+        isOffer: false,
+        usedPoints: 0,
+        pricePerhour: subPlace.pricePerHour.toDouble(),
       ),
     );
   }
 
+  // 2. تحديث الداتا لما الـ StreamBuilder يلقط تغيير من Firestore
+  void updateLiveSubPlace(SubPlace newSubPlace) {
+    _subPlace = newSubPlace;
+    if (state is BookingDataState) {
+      final currentState = state as BookingDataState;
+      emit(currentState.copyWith());
+    }
+  }
+
+  // 3. اختيار اليوم (بيصفر الساعات المختارة)
   void selectDay(String day) {
     if (state is BookingDataState) {
+      final currentState = state as BookingDataState;
       emit(
-        (state as BookingDataState).copyWith(
+        currentState.copyWith(
           selectedDay: day,
           selectedBookingSlots: {},
-          provisionalTotalPrice: 0.0,
-          requiredDeposit: 0.0,
-          minRequiredDeposit: 0.0,
+          originalTotalAmount: 0.0,
+          finalAmount: 0.0,
           paidAmount: 0.0,
           remainingAmount: 0.0,
         ),
@@ -48,121 +67,188 @@ class BookingCubit extends Cubit<BookingState> {
     }
   }
 
+  // 4. اختيار/إلغاء ساعة (Slot)
   void toggleTimeSlot(String slotId) {
     if (state is BookingDataState && _subPlace != null) {
       final currentState = state as BookingDataState;
       final updatedSlots = Set<String>.from(currentState.selectedBookingSlots);
-      double updatedPrice = currentState.provisionalTotalPrice;
+      double updatedOriginalPrice = currentState.originalTotalAmount;
 
       if (updatedSlots.contains(slotId)) {
         updatedSlots.remove(slotId);
-        updatedPrice -= _subPlace!.pricePerHour;
+        updatedOriginalPrice -= _subPlace!.pricePerHour;
       } else {
         updatedSlots.add(slotId);
-        updatedPrice += _subPlace!.pricePerHour;
+        updatedOriginalPrice += _subPlace!.pricePerHour;
       }
 
-      final requiredDeposit = _calculateRequiredDeposit(updatedSlots.length);
-      final minRequiredDeposit = _calculateMinRequiredDeposit(
-        updatedSlots.length,
+      _calculateAndEmit(
+        currentState: currentState,
+        newOriginalPrice: updatedOriginalPrice,
+        newSlots: updatedSlots,
+        isOffer: currentState.isOffer,
+        points: currentState.usedPoints,
       );
+    }
+  }
 
+  // 5. تفعيل أو إغلاق العرض (الـ Toggle)
+  void toggleOffer(bool isEnabled) {
+    if (state is BookingDataState) {
+      final currentState = state as BookingDataState;
+
+      // لو قفل العرض، بنبعت النقاط بـ 0 عشان السعر يرجع لأصله
+      _calculateAndEmit(
+        currentState: currentState,
+        newOriginalPrice: currentState.originalTotalAmount,
+        newSlots: currentState.selectedBookingSlots,
+        isOffer: isEnabled,
+        points: isEnabled ? currentState.usedPoints : 0,
+      );
+    }
+  }
+
+  // 6. تحريك السلايدر (تغيير النقاط)
+  void updateUsedPoints(int points) {
+    if (state is BookingDataState) {
+      final currentState = state as BookingDataState;
+      _calculateAndEmit(
+        currentState: currentState,
+        newOriginalPrice: currentState.originalTotalAmount,
+        newSlots: currentState.selectedBookingSlots,
+        isOffer: true, // طالما حرك السلايدر يبقى فعل العرض
+        points: points,
+      );
+    }
+  }
+
+  // 7. تحديث المبلغ المدفوع يدوياً
+  void updatePaidAmount(double amount) {
+    if (state is BookingDataState) {
+      final currentState = state as BookingDataState;
       emit(
         currentState.copyWith(
-          selectedBookingSlots: updatedSlots,
-          provisionalTotalPrice: updatedPrice,
-          requiredDeposit: requiredDeposit,
-          minRequiredDeposit: minRequiredDeposit,
+          paidAmount: amount,
+          remainingAmount: (currentState.finalAmount - amount).clamp(
+            0.0,
+            double.infinity,
+          ),
         ),
       );
     }
   }
 
-  /// Calculate required deposit based on the number of hours
-  /// Formula: ((hoursCount + 2) ~/ 3) * 100
-  double _calculateRequiredDeposit(int hoursCount) {
-    if (hoursCount == 0) return 0.0;
-    final deposits = ((hoursCount + 2) ~/ 3) * 100;
-    return deposits.toDouble();
-  }
+  // --- الهيلبر الأساسي للحسابات ---
+  void _calculateAndEmit({
+    required BookingDataState currentState,
+    required double newOriginalPrice,
+    required Set<String> newSlots,
+    required bool isOffer,
+    required int points,
+  }) {
+    // قاعدة الخصم: كل نقطة بـ 1%
+    double discountFactor = isOffer ? (points / 100) : 0.0;
+    double newFinalAmount = newOriginalPrice * (1 - discountFactor);
 
-  /// Calculate minimum required deposit (same formula as above)
-  /// Min: 100 EGP per 3 hours
-  double _calculateMinRequiredDeposit(int hoursCount) {
-    if (hoursCount == 0) return 0.0;
-    final minDeposit = ((hoursCount + 2) ~/ 3) * 100;
-    return minDeposit.toDouble();
-  }
+    // حساب العربون بناءً على عدد الساعات
+    double deposit = _calculateDeposit(newSlots.length);
 
-  /// Set the paid amount and calculate remaining amount
-  void setFlexiblePaymentAmount(double paidAmount) {
-    if (state is BookingDataState) {
-      final currentState = state as BookingDataState;
-      final remainingAmount = (currentState.provisionalTotalPrice - paidAmount)
-          .clamp(0.0, double.infinity);
-
-      emit(
-        currentState.copyWith(
-          paidAmount: paidAmount,
-          remainingAmount: remainingAmount,
+    emit(
+      currentState.copyWith(
+        originalTotalAmount: newOriginalPrice,
+        finalAmount: newFinalAmount,
+        selectedBookingSlots: newSlots,
+        isOffer: isOffer,
+        usedPoints: points,
+        minRequiredDeposit: deposit,
+        requiredDeposit: deposit,
+        // لو المبلغ المكتوب أكبر من السعر الجديد، بننزله للسعر الجديد
+        paidAmount: currentState.paidAmount > newFinalAmount
+            ? newFinalAmount
+            : currentState.paidAmount,
+        remainingAmount: (newFinalAmount - currentState.paidAmount).clamp(
+          0.0,
+          double.infinity,
         ),
-      );
+      ),
+    );
+  }
+
+  double _calculateDeposit(int count) =>
+      count == 0 ? 0.0 : (((count + 2) ~/ 3) * 100).toDouble();
+
+  // جلب رصيد النقاط من الداتابيز
+  Future<int> getUserPoints() async {
+    try {
+      UserModel? user = await _authService.getCurrentUser();
+      return user?.points ?? 0;
+    } catch (e) {
+      return 0;
     }
   }
 
-  /// Validate if the paid amount meets the minimum requirement
-  bool isValidPaymentAmount(double paidAmount) {
-    if (state is BookingDataState) {
-      final currentState = state as BookingDataState;
-      return paidAmount >= currentState.minRequiredDeposit &&
-          paidAmount <= currentState.provisionalTotalPrice;
-    }
-    return false;
-  }
-
-  Future<void> confirmBooking({
-    required String userId,
-    required double paidAmount,
-  }) async {
+  // تأكيد الحجز النهائي
+  Future<void> confirmBooking({required double amountToPay}) async {
+    // التأكد إننا في الحالة الصح اللي شايلة بيانات العرض
     if (state is! BookingDataState) return;
+
     final currentState = state as BookingDataState;
 
-    emit(BookingLoading());
+    final userId = await _authService.getCurrentUserId() ?? 'user Id';
+
+    final orderId = Uuid().v4();
+
     try {
       final Map<String, List<String>> slotsToBook = {};
       for (var id in currentState.selectedBookingSlots) {
         final parts = id.split('_');
         slotsToBook.putIfAbsent(parts[0], () => []).add(parts[1]);
       }
-
-      // Book slots via service
+      // 1. حجز الساعات
       await _bookingService.bookSlots(
         placeId: _place!.id,
         subPlaceId: _subPlace!.id,
         selectedSlots: slotsToBook,
         userId: userId,
+        orderId: orderId,
       );
 
-      final bookingModel = BookingModel(
-        id: const Uuid().v4(),
+      // 2. إنشاء الموديل (تأكد من تمرير currentState.isOffer)
+      final model = BookingModel(
+        bookedBy: "user",
+        id: orderId,
         userId: userId,
         subPlaceId: _subPlace!.id,
         bookingDate: DateTime.now(),
         timeSlots: slotsToBook,
-        totalPrice: currentState.provisionalTotalPrice,
-        paidAmount: paidAmount,
+        totalPrice: currentState.originalTotalAmount,
+        paidAmount: amountToPay,
         requiredDeposit: currentState.requiredDeposit,
-        isOffer: _place!.hasOffer ?? false,
-        priceAfterOffer: currentState.provisionalTotalPrice,
+        isOffer: currentState.isOffer, // دي اللي كانت بتوصل false
+        priceAfterOffer: currentState.finalAmount,
         placeId: _place!.id,
-        isCash: false, // All bookings are now digital (paid via Paymob)
+        isCash: false,
       );
 
-      await _bookingService.addBooking(bookingModel);
+      await _bookingService.addBooking(model);
+
+      // 3. خصم النقاط لو فيه عرض
+      if (currentState.isOffer && currentState.usedPoints > 0) {
+        await _bookingService.deductPoints(
+          userId: userId,
+          pointsToDeduct: currentState.usedPoints,
+        );
+      }
+
+      await _bookingService.addPointsToUserWithId(
+        pointsToAdd: 5,
+        userId: userId,
+      );
 
       emit(BookingSuccess(message: 'bookingSuccessMessage'));
     } catch (e) {
-      emit(BookingFailure(errorMessage: 'error'));
+      print(e);
+      emit(BookingFailure(errorMessage: 'error_occurred'));
     }
   }
 }

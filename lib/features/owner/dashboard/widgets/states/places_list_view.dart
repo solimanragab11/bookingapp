@@ -3,7 +3,7 @@ import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/place_card.dart';
 
 class PlacesListView extends StatelessWidget {
-  final List<Place> places;
+  final List<PlaceModel> places;
 
   const PlacesListView({super.key, required this.places});
 
@@ -18,4 +18,3 @@ class PlacesListView extends StatelessWidget {
     );
   }
 }
-

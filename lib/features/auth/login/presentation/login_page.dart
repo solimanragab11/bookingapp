@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/auth_bottomsheet.dart';
+import 'package:remaking_booking_app_trail2/core/widgets/login_bottomsheet.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/cust_button.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/cust_textfiled.dart';
@@ -21,8 +20,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _phoneController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  // Flag لمنع تكرار فتح الـ BottomSheet
+  // ignore: unused_field
+  bool _otpSheetOpen = false;
 
   @override
   void dispose() {
@@ -30,156 +33,195 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // OTP bottom sheet logic
+  // ---------------------------------------------------------------------------
+  void _showOtpSheet(String verificationId) {
+    // بنشيل شرط الـ if (_otpSheetOpen) عشان نسمح لها تفتح تاني لو اليوزر قفلها يدوي
+    _otpSheetOpen = true;
+
+    final cubit = context.read<LoginCubit>();
+
+    AuthBottomSheet.showOTP(
+      context: context,
+      loginCubit: cubit,
+      phoneNumber: _phoneController.text,
+      onResend: () => cubit.sendLoginOTP(_phoneController.text),
+      onVerify: (smsCode) => cubit.verifyLoginOTP(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      ),
+    ).then((_) {
+      // السطر ده سحر! لما الـ BottomSheet يقفل (بأي طريقة)، بنصفر الـ Flag
+      _otpSheetOpen = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // استخدام الـ Screen Size كمرجع
-    final screenSize = MediaQuery.of(context).size;
-    final double screenHeight = screenSize.height;
-    final double screenWidth = screenSize.width;
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [const LanguageToggleButton()],
         automaticallyImplyLeading: false,
+        actions: const [LanguageToggleButton()],
       ),
       body: Stack(
         children: [
-          BackGround(h: screenHeight, w: screenWidth),
-          BlocConsumer<LoginCubit, LoginState>(
+          BackGround(h: size.height, w: size.width),
+          BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
               if (state is LoginCodeSent) {
-                AuthBottomSheet.showOTP(
-                  context: context,
-                  phoneNumber: _phoneController.text,
-                  onVerify: (smsCode) {
-                    context.read<LoginCubit>().verifyLoginOTP(
-                      verificationId: state.verificationId,
-                      smsCode: smsCode,
-                    );
-                  },
-                );
-              } else if (state is LoginError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(context.tr(state.message)),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                _showOtpSheet(state.verificationId);
               } else if (state is LoginSuccess) {
+                _otpSheetOpen = false;
                 if (Navigator.canPop(context)) Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, Routes.authWrapper);
+              } else if (state is LoginError) {
+                _otpSheetOpen = false;
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    SnackBar(
+                      content: Text(context.tr(state.messageKey)),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
               }
             },
-            builder: (context, state) {
-              return SafeArea(
-                child: LayoutBuilder(
-                  // بيساعدنا نراقب القيود بتاعة الشاشة
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenWidth * 0.08,
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: size.width * 0.08,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints
-                              .maxHeight, // عشان العناصر تتوزع على كامل الشاشة
-                        ),
-                        child: IntrinsicHeight(
-                          // بيخلي الـ Column ياخد حجمه الطبيعي جوه الـ Scroll
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center, // توسيط ديناميكي
-                              children: [
-                                SizedBox(height: screenHeight * 0.05),
-                                // حجم الخط متناسب مع ارتفاع الشاشة
-                                FittedBox(
-                                  // بيمنع الـ Text من الخروج بره الشاشة لو الخط كبير
-                                  child: Text(
-                                    context.tr('appName'),
-                                    style: TextStyleMangare.headingStyle
-                                        .copyWith(
-                                          fontSize: screenHeight * 0.065,
-                                          color: ColorManager.wasabi,
-                                        ),
-                                  ),
-                                ),
-                                Text(
-                                  context.tr('welcomeBack'),
+                      child: IntrinsicHeight(
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(height: size.height * 0.05),
+                              FittedBox(
+                                child: Text(
+                                  context.tr('appName'),
                                   style: TextStyleMangare.headingStyle.copyWith(
-                                    fontSize: screenHeight * 0.025,
+                                    fontSize: size.height * 0.065,
+                                    color: ColorManager.wasabi,
                                   ),
                                 ),
-
-                                Spacer(
-                                  flex: 1,
-                                ), // فراغ مرن بيزيد ويقل حسب الشاشة
-
-                                CustTextField(
-                                  controller: _phoneController,
-                                  hint: context.tr('phoneNumber'),
-                                  icon: Icons.phone_android,
-                                  isPhone: true,
-                                  validator: (value) =>
-                                      (value == null || value.isEmpty)
-                                      ? context.tr('phoneRequired')
-                                      : null,
+                              ),
+                              Text(
+                                context.tr('welcomeBack'),
+                                style: TextStyleMangare.headingStyle.copyWith(
+                                  fontSize: size.height * 0.025,
                                 ),
+                              ),
+                              const Spacer(),
+                              CustTextField(
+                                controller: _phoneController,
+                                hint: context.tr('phoneNumber'),
+                                icon: Icons.phone_android,
+                                isPhone: true,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return context.tr('phoneRequired');
+                                  }
+                                  if (value.trim().length < 10) {
+                                    return context.tr('phoneInvalid');
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: size.height * 0.03),
 
-                                SizedBox(height: screenHeight * 0.03),
+                              // --- الـ BlocBuilder المحدث للزرار الرئيسي ---
+                              BlocBuilder<LoginCubit, LoginState>(
+                                buildWhen: (prev, curr) =>
+                                    curr is LoginSendOTPLoading ||
+                                    curr is LoginInitial ||
+                                    curr is LoginError ||
+                                    curr is LoginCodeSent ||
+                                    curr is LoginResendCountdown ||
+                                    curr is LoginResendEnabled,
+                                builder: (context, state) {
+                                  if (state is LoginSendOTPLoading) {
+                                    return const CircularProgressIndicator(
+                                      color: ColorManager.wasabi,
+                                    );
+                                  }
 
-                                state is LoginSendOTPLoading
-                                    ? const CircularProgressIndicator(
-                                        color: ColorManager.wasabi,
-                                      )
-                                    : CustButton(
-                                        h: screenHeight,
-                                        w: screenWidth,
-                                        color: ColorManager.wasabi,
-                                        onTap: () {
-                                          if (_formKey.currentState!
-                                              .validate()) {
-                                            context
-                                                .read<LoginCubit>()
-                                                .sendLoginOTP(
-                                                  _phoneController.text,
-                                                );
-                                          }
-                                        },
-                                        size: "mid",
-                                        lable: context.tr('login'),
-                                      ),
+                                  // التحقق لو العداد شغال
+                                  bool isCountdown =
+                                      state is LoginResendCountdown;
+                                  String btnLabel = context.tr('login');
 
-                                Spacer(flex: 2), // فراغ أكبر في الأسفل
+                                  if (state is LoginResendCountdown) {
+                                    // عرض الثواني المتبقية على الزرار نفسه
+                                    btnLabel =
+                                        "${context.tr('resendIn')} ${state.seconds}";
+                                  }
 
-                                TextButton(
-                                  onPressed: () => Navigator.pushNamed(
-                                    context,
-                                    Routes.signup,
-                                  ),
-                                  child: Text(
-                                    context.tr('dontHaveAccountSignUp'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  return CustButton(
+                                    h: size.height,
+                                    w: size.width,
+                                    // لون باهت لو الزرار معطل
+                                    color: isCountdown
+                                        ? Colors.grey
+                                        : ColorManager.wasabi,
+                                    size: 'mid',
+                                    lable: btnLabel,
+                                    onTap: () {
+                                      final cubit = context.read<LoginCubit>();
+
+                                      if (_formKey.currentState!.validate()) {
+                                        // لو العداد شغال والـ verificationId موجود، افتح الـ Sheet بس
+                                        if (isCountdown &&
+                                            cubit.verificationId != null) {
+                                          _showOtpSheet(cubit.verificationId!);
+                                        }
+                                        // لو مفيش عداد، ابعت طلب جديد عادي
+                                        else if (!isCountdown) {
+                                          cubit.sendLoginOTP(
+                                            _phoneController.text,
+                                          );
+                                        }
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+
+                              const Spacer(flex: 2),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pushNamed(context, Routes.signup),
+                                child: Text(
+                                  context.tr('dontHaveAccountSignUp'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                SizedBox(height: 20), // أمان أخير من الأسفل
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              );
-            },
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),

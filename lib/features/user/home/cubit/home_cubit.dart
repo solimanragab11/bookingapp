@@ -6,13 +6,15 @@ import 'package:remaking_booking_app_trail2/core/models/place.dart';
 
 class HomeCubit extends Cubit<HomeStats> {
   final HomeRepo _homeRepo;
-  List<Place> _allPlaces = [];
+  List<PlaceModel> _allPlaces = [];
 
   HomeCubit(this._homeRepo) : super(HomeLoading()) {
     fetchPlaces();
   }
 
   Future<void> fetchPlaces() async {
+    // جوه fetchPlaces
+    if (isClosed) return; // ضيف السطر ده في بداية الدالة أو قبل الـ emit
     emit(HomeLoading());
     try {
       _allPlaces = await _homeRepo.getAllPlaces();
@@ -24,7 +26,7 @@ class HomeCubit extends Cubit<HomeStats> {
 
   void selectTab(String tab) {
     if (state is HomeLoaded) {
-      List<Place> filtered;
+      List<PlaceModel> filtered;
       if (tab == "offers") {
         filtered = _allPlaces.where((p) => p.hasOffer == true).toList();
       } else {

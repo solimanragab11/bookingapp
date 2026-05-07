@@ -26,7 +26,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   shared_preferences: ^2.3.4
-  flutter_stripe: ^12.1.1
   dio: ^5.9.0
   google_sign_in: ^6.2.0
   shimmer: ^3.0.0   
@@ -38,15 +37,17 @@ dependencies:
   geocoding: ^3.0.0
   geolocator: ^10.1.0
   awesome_dialog: ^3.2.1
-  lottie: ^3.1.2 # لو عايز تحط أنيميشن "صح"
+  lottie: ^3.1.2 
   get_it: ^9.2.0
   webview_flutter: ^4.4.2
   cloud_functions: ^6.0.6
   firebase_app_check: ^0.4.1+5
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
 
@@ -54,3 +55,9 @@ flutter:
   
   assets:
     - assets/
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#121212" # لون الخلفية للأندرويد
+  adaptive_icon_foreground: "assets/icon.png"

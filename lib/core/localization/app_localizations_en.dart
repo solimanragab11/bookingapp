@@ -78,7 +78,7 @@ class AppLocalizationsEn {
     'pressToSelectLocation': 'Press to select location on map',
     'locationSelectedSuccess': 'Location selected successfully ✅',
     'successTitle': 'Saved Successfully!',
-    'successDesc': 'Your place is now on the map and ready for booking!',
+    'successDesc': 'Your PlaceModel is now on the map and ready for booking!',
     'successButton': 'Done',
     'errorSaving': 'Error occurred while saving: ',
 
@@ -102,8 +102,19 @@ class AppLocalizationsEn {
     'newBooking': 'New Booking for Customer',
     'customerName': 'Customer Name',
     'selectedHours': 'Selected Hours',
+    "myBookings": "My Bookings",
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "paid": "Paid",
+    "remaining": "Remaining",
+    "total": "Total",
+    "noBookingsFound": "No bookings found yet",
+    "totalPaid": "Total Paid",
+    "past": "this time has already passed, we can't book it",
+    "booked": "sorry, someone else has booked this slot",
 
-    // Place Details
+    // PlaceModel Details
     'placeDetails': 'Place Details',
     'description': 'Description',
     'category': 'Category',
@@ -133,7 +144,7 @@ class AppLocalizationsEn {
     'minimumDepositColon': 'Minimum Deposit Required: ',
     'failedPaymentUrl': 'Failed to prepare payment link',
     'errorProcessingPayment': 'Error processing payment',
-    'minDeposit': 'Minimum Deposit',
+    'minDeposit': 'Minimum',
     'halfPrice': 'Half Price',
     'fullPrice': 'Full Price',
     'enterPaymentAmount': 'Enter payment amount',
@@ -180,5 +191,12 @@ class AppLocalizationsEn {
     'logout': 'Logout',
     'noData': 'No data available.',
     'successMessage': 'Operation completed successfully',
+
+    "past_status": "Ended",
+    "booked_by_app": "Booked by the app",
+    "booked_by_you": "Booked by you",
+    "available_status": "Available",
+    "msg_time_started": "This time has already started",
+    "msg_already_booked": "Sorry, this slot is already booked",
   };
 }

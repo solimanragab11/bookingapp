@@ -1,57 +1,160 @@
+import 'dart:async';
+import 'package:intl/intl.dart';
+import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
+import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_for_bookings.dart';
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_states.dart';
+import 'package:uuid/uuid.dart';
 
 class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
-  final OwnerBookingRepository _ownerRepository;
-
+  final OwnerRepoImpl _ownerRepository;
+  StreamSubscription? _placesSubscription;
+  List<PlaceModel> places = [];
   ManageBookingPlaceCubit(this._ownerRepository) : super(ManagePlaceInitial());
 
-  // 1. جلب أماكن المالك (Stream)
-  void fetchMyPlaces(String ownerId) {
-    emit(ManagePlaceLoading());
+  // ---------------------------------------------------------------------------
+  // Fetch owner places — live stream
+  // ---------------------------------------------------------------------------
 
-    // الـ Stream ده هو "الرادار" بتاعنا، أي تغيير في السيرفر هيسمع هنا فوراً
-    _ownerRepository.getMyPlaces(ownerId).listen((result) {
-      result.fold((error) => emit(ManagePlaceError(error)), (places) {
-        if (places.isEmpty) {
-          emit(ManagePlaceEmpty());
-        } else {
-          emit(ManagePlaceLoaded(places: places));
-        }
-      });
-    });
+  Future<void> getMyPlacesOnce() async {
+    emit(ManagePlaceLoading('from palces loading'));
+    print("you are geting places!!");
+    // 2. نادى الدالة واستنى النتيجة
+    final result = await _ownerRepository.getMyPlacesOnce();
+    // 3. افتح الصندوق (الـ Either)
+    result.fold(
+      (failureMessage) {
+        // لو العملية فشلت (الجانب الأيسر - Left)
+        // بنبعت رسالة الخطأ للـ State
+        emit(ManagePlaceError(failureMessage));
+      },
+      (placesList) {
+        // لو العملية نجحت (الجانب الأيمن - Right)
+        // بنبعت قائمة الأماكن للـ UI
+        places = placesList;
+        emit(ManagePlaceLoaded(places: places));
+      },
+    );
   }
 
-  // 2. الميثود الجديدة للحجز الجماعي (Bulk Update)
-  Future<void> updateSlotsBulk({
+  Future<void> addManualBooking({
     required String placeId,
-    required int subPlaceIndex,
-    required String day,
-    required List<String> slots,
-    required bool isCanceling,
+    required String subPlaceId,
+    required List<String> selectedSlots,
+    required String userPhone,
+    required DateTime bookingDate,
+    required double pricePerHour,
+    required double deposit,
   }) async {
-    try {
-      // بنعمل Loading خفيف عشان المستخدم يعرف إن فيه عملية بتتم
-      // ملاحظة: لو مش عايز الشاشة كلها "تبيض"، ممكن تعمل State تانية للـ Button Loading
+    // 1. حماية: لو الكوبيت مقفول متنفذش حاجة
+    if (isClosed) return;
 
-      await _ownerRepository.bookMultipleSlots(
+    try {
+      // إرسال حالة التحميل (لو عندك State للتحميل)
+      emit(ManagePlaceLoading('from the booking man.'));
+
+      final String dayKey = _formatBookingDate(bookingDate);
+      final Map<String, List<String>> formattedSlots = {dayKey: selectedSlots};
+      final double totalPrice = selectedSlots.length * pricePerHour;
+
+      final String? userId = await _ownerRepository.getUserIdByPhone(userPhone);
+
+      final booking = BookingModel(
+        bookedBy: 'owner',
+        id: const Uuid().v4(),
+        userId: userId ?? 'unknown_user',
+        subPlaceId: subPlaceId,
+        bookingDate: bookingDate,
+        timeSlots: formattedSlots,
+        totalPrice: totalPrice,
+        paidAmount: deposit,
+        requiredDeposit: _calculateRequiredDeposit(selectedSlots.length),
+        isOffer: false,
+        priceAfterOffer: totalPrice,
         placeId: placeId,
-        subPlaceIndex: subPlaceIndex,
-        day: day,
-        slots: slots,
-        isCanceling: isCanceling,
+        isCash: true,
       );
 
-      // مفيش داعي ننادي fetchMyPlaces يدوياً لأننا شغالين بـ Stream
-      // بس لو حبيت تتأكد، ممكن تناديها.
-      print("Bulk Update Success: ${slots.length} slots updated.");
+      // 2. التنفيذ الفعلي في Firebase
+      await _ownerRepository.bookSlots(
+        subPlaceId: subPlaceId,
+        placeId: placeId,
+        selectedSlots: formattedSlots,
+        booking: booking,
+        userId: userId ?? 'guest_user',
+      );
+
+      // 3. تأكد إن الكوبيت لسه "عايش" بعد الـ await الطويل بتاع Firebase
+      if (!isClosed) {
+        emit(ManagePlaceOperationSuccess());
+
+        // 4. التحديث التلقائي للبيانات
+        // ملاحظة: لو getMyPlacesOnce بتاخد وقت، يفضل متعملش await ليها
+        // عشان متأخرش الـ Success state اللي هتقفل الـ Dialog أو الصفحة
+        getMyPlacesOnce();
+      }
     } catch (e) {
-      emit(ManagePlaceError("فشل التحديث الجماعي: $e"));
+      debugPrint('[ManageBookingPlaceCubit] Error: $e');
+      if (!isClosed) {
+        emit(ManagePlaceError('error_occurred'));
+      }
     }
   }
+  // ---------------------------------------------------------------------------
+  // Cancel / Delete Booking
+  // ---------------------------------------------------------------------------
 
-  // 3. حذف مكان مع صوره بدون المساس بالحجوزات
+  Future<void> cancelManualBooking({
+    required String placeId,
+    required int subPlaceIndex,
+    required DateTime bookingDate,
+    required List<String> slots,
+  }) async {
+    // 1. أول حاجة لازم نطلع الـ Loading
+    emit(ManagePlaceLoading('from canceling '));
+
+    final String dayKey = _formatBookingDate(bookingDate);
+
+    // 2. تنفيذ العملية
+    final result = await _ownerRepository.cancelBooking(
+      placeId: placeId,
+      subPlaceIndex: subPlaceIndex,
+      dayKey: dayKey,
+      slotsToCancel: slots,
+    );
+
+    // 3. معالجة النتيجة
+    await result.fold(
+      (failureMessage) async {
+        emit(ManagePlaceError(failureMessage));
+        // حتى في الفشل، لازم نرجع الحالة لـ Loaded عشان الـ Loading يختفي
+        await getMyPlacesOnce();
+      },
+      (_) async {
+        // الترتيب هنا "جوهري" يا بطل:
+
+        // أولاً: نجيب الداتا الجديدة فعلياً من السيرفر
+        await getMyPlacesOnce();
+
+        // ثانياً: نبعت نجاح العملية عشان الـ SnackBar تظهر
+        emit(ManagePlaceOperationSuccess());
+
+        // ثالثاً: نبعت الـ Loaded بالداتا الجديدة عشان الـ UI يرسم نفسه والـ Loading يختفي
+        emit(ManagePlaceLoaded(places: places));
+      },
+    );
+  }
+
+  // ميثود مساعدة لفصل منطق التنسيق
+  String _formatBookingDate(DateTime date) {
+    return DateFormat('EEEE dd/MM', 'en').format(date).toLowerCase();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete place
+  // ---------------------------------------------------------------------------
   Future<bool> deletePlace({
     required String placeId,
     required String ownerId,
@@ -61,28 +164,30 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
         placeId: placeId,
         ownerId: ownerId,
       );
-      return result.fold(
-        (error) {
-          emit(ManagePlaceError(error));
-          return false;
-        },
-        (_) {
-          // إحنا شغالين بـ Stream في fetchMyPlaces، فمجرد حذف الداتا
-          // هيخلي الـ Stream يحدث الليست تلقائياً
-          return true;
-        },
-      );
+      return result.fold((errorKey) {
+        if (!isClosed) emit(ManagePlaceError(errorKey));
+        return false;
+      }, (_) => true);
     } catch (e) {
-      emit(ManagePlaceError('فشل حذف المكان: $e'));
+      debugPrint('[ManageBookingPlaceCubit] deletePlace error: $e');
+      if (!isClosed) emit(ManagePlaceError('deletePlaceError'));
       return false;
     }
   }
 
-  // 3. تحديث التحليلات (اختياري)
-  Future<void> refreshAnalysis(String placeId) async {
-    final result = await _ownerRepository.getPlaceWithAnalysis(placeId);
-    result.fold((error) => null, (analysisData) {
-      // تحديث إحصائيات المكان لو لزم الأمر
-    });
+  double _calculateRequiredDeposit(int numberOfSlots) {
+    // بنقسم عدد الساعات على 2
+    // ~/ بتدينا الرقم الصحيح (مثلاً لو 3 ساعات، يبقى فيها كام "ساعتين كاملين"؟ فيها 1)
+    // لو عاوز تحسب الساعات الفردية برضه، بنستخدم القسمة العادية
+
+    double deposit = (numberOfSlots / 2) * 50;
+
+    return deposit;
+  }
+
+  @override
+  Future<void> close() {
+    _placesSubscription?.cancel();
+    return super.close();
   }
 }

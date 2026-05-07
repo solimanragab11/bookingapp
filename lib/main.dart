@@ -19,19 +19,20 @@ void main() async {
   try {
     await Firebase.initializeApp();
 
-    print("Firebase Initialized ✅");
+    debugPrint("Firebase Initialized ✅");
 
-    // 2. تفعيل الـ App Check للـ Debug mode (ده اللي هيحل مشكلة الـ Log)
-    // ده بيخلي Firebase يثق في الموبايل بتاعك وأنت شغال تطوير
     await FirebaseAppCheck.instance.activate(
+      // السطر ده مهم جداً للـ Android
       androidProvider: AndroidProvider.debug,
     );
-    print("App Check Activated ✅");
+    // String? token = await FirebaseAppCheck.instance.getToken();
+    // debugPrint("سجل الـ Token ده عندك يا سولي: $token");
+    // debugPrint("App Check Activated ✅");
 
     await setupGetIt();
-    print("GetIt Initialized ✅");
+    debugPrint("GetIt Initialized ✅");
   } catch (e) {
-    print("Error during initialization: $e ❌");
+    debugPrint("Error during initialization: $e ❌");
   }
 
   runApp(const BookingHubApp());
@@ -42,16 +43,13 @@ class BookingHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // تجهيز الـ Repository والـ Functions مرة واحدة ليتم حقنهم
     final authService = AuthService();
 
     return MultiBlocProvider(
       providers: [
-        // حقن الـ AuthCubit بالـ Repository بتاعه
         BlocProvider<AuthCubit>(
           create: (context) => AuthCubit(authService)..checkAuthStatus(),
         ),
-        // حقن كيوبيت اللغة
         BlocProvider<LanguageCubit>(create: (context) => LanguageCubit()),
       ],
       child: BlocBuilder<LanguageCubit, Locale>(
@@ -92,7 +90,7 @@ class BookingHubApp extends StatelessWidget {
 
             // نظام الراوتنج (Routing)
             onGenerateRoute: AppRouter.generateRoute,
-            initialRoute: Routes.login, // البداية من صفحة التسجيل
+            initialRoute: Routes.authWrapper, // البداية من صفحة التسجيل
           );
         },
       ),

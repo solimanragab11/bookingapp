@@ -4,8 +4,8 @@ import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/features/user/place_details/cubit/place_details_stats.dart';
 
 class PlaceDetailsCubit extends Cubit<PlaceDetailsStats> {
-  // بنبدأ الـ Cubit وبنديله الـ Place اللي جاي من الـ Home
-  PlaceDetailsCubit(Place place) : super(PlaceDetailsLoaded(place: place));
+  // بنبدأ الـ Cubit وبنديله الـ PlaceModel اللي جاي من الـ Home
+  PlaceDetailsCubit(PlaceModel place) : super(PlaceDetailsLoaded(place: place));
 
   // لما اليوزر يختار ملعب فرعي (SubPlace) مختلف
   void changeSubPlace(int index) {

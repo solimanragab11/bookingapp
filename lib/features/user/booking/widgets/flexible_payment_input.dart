@@ -1,19 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'points_slider_section.dart';
+import 'quick_action_button.dart';
 
 class FlexiblePaymentInput extends StatefulWidget {
-  final double totalPrice;
-  final double minRequiredDeposit;
-  final ValueChanged<double> onAmountChanged;
-  final VoidCallback? onPayNow;
+  final double currentFinalPrice;
+  final double originalTotalPrice;
+  final double minDeposit;
+  final double paidAmount;
+  final int userPoints;
+  final int selectedPoints;
+  final bool isOfferEnabled;
+
+  final ValueChanged<bool> onOfferToggle;
+  final ValueChanged<double> onPointsChanged;
+  final ValueChanged<double> onAmountEntered;
+  final VoidCallback onMinDepositTap;
+  final VoidCallback onHalfPriceTap;
+  final VoidCallback onFullPriceTap;
 
   const FlexiblePaymentInput({
     super.key,
-    required this.totalPrice,
-    required this.minRequiredDeposit,
-    required this.onAmountChanged,
-    this.onPayNow,
+    required this.currentFinalPrice,
+    required this.originalTotalPrice,
+    required this.paidAmount,
+    required this.userPoints,
+    required this.selectedPoints,
+    required this.isOfferEnabled,
+    required this.onOfferToggle,
+    required this.onPointsChanged,
+    required this.onAmountEntered,
+    required this.onMinDepositTap,
+    required this.onHalfPriceTap,
+    required this.onFullPriceTap,
+    required this.minDeposit,
   });
 
   @override
@@ -21,327 +42,181 @@ class FlexiblePaymentInput extends StatefulWidget {
 }
 
 class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
-  late TextEditingController _amountController;
-  double _selectedAmount = 0;
-  bool _isValidAmount = true;
-  String _errorMessage = '';
+  late TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController(
-      text: widget.minRequiredDeposit.toStringAsFixed(0),
+    // بنخلي القيمة الابتدائية هي اللي جاية من الـ state
+    _controller = TextEditingController(
+      text: widget.paidAmount > 0 ? widget.paidAmount.toStringAsFixed(0) : '',
     );
-    _selectedAmount = widget.minRequiredDeposit;
+  }
+
+  // دي أهم حتة: لما الـ Widget "تترسم" تاني بقيم جديدة من الـ Cubit
+  @override
+  void didUpdateWidget(covariant FlexiblePaymentInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // لو الـ paidAmount اتغيرت من برا (بسبب زرار مثلاً)، بنحدث الـ controller
+    if (widget.paidAmount != oldWidget.paidAmount) {
+      String newText = widget.paidAmount > 0
+          ? widget.paidAmount.toStringAsFixed(0)
+          : '';
+      if (_controller.text != newText) {
+        _controller.text = newText;
+        // عشان نخلي الكرسر في الآخر دايماً
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _updateAmount(double amount) {
-    setState(() {
-      _selectedAmount = amount;
-      _amountController.text = amount.toStringAsFixed(0);
-      _validateAmount(amount);
-    });
-    widget.onAmountChanged(amount);
-  }
-
-  void _validateAmount(double amount) {
-    setState(() {
-      if (amount < widget.minRequiredDeposit) {
-        _isValidAmount = false;
-        _errorMessage =
-            '${context.tr('amountMustBeGreater')} ${widget.minRequiredDeposit.toStringAsFixed(0)} ${context.tr('egp')}';
-      } else if (amount > widget.totalPrice) {
-        _isValidAmount = false;
-        _errorMessage = context.tr('invalidAmount');
-      } else {
-        _isValidAmount = true;
-        _errorMessage = '';
-      }
-    });
-  }
-
-  void _onManualInput(String value) {
-    if (value.isEmpty) {
-      setState(() {
-        _isValidAmount = true;
-        _errorMessage = '';
-      });
-      return;
-    }
-
-    final amount = double.tryParse(value);
-    if (amount != null) {
-      _selectedAmount = amount;
-      _validateAmount(amount);
-      widget.onAmountChanged(amount);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final remainingAmount = widget.totalPrice - _selectedAmount;
+    final remainingAmount = widget.currentFinalPrice - widget.paidAmount;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _isValidAmount ? ColorManager.wasabi : Colors.red,
-          width: 2,
-        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+        border: Border.all(color: ColorManager.wasabi.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
+          if (widget.userPoints > 0)
+            PointsSliderSection(
+              userPoints: widget.userPoints,
+              isOfferEnabled: widget.isOfferEnabled,
+              selectedPoints: widget.selectedPoints,
+              maxPointsLimit: widget.userPoints > 25
+                  ? 25.0
+                  : widget.userPoints.toDouble(),
+              onToggleChanged: (val) => widget.onOfferToggle(val),
+              onSliderChanged: widget.onPointsChanged,
+            ),
+
+          const SizedBox(height: 20),
           Text(
             context.tr('selectPaymentAmount'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: ColorManager.wasabi,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Quick Action Buttons
-          Text(
-            context.tr('quickActions'),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _QuickActionButton(
-                label: context.tr('minDeposit'),
-                amount: widget.minRequiredDeposit,
-                isSelected:
-                    (_selectedAmount - widget.minRequiredDeposit).abs() < 0.01,
-                onTap: () => _updateAmount(widget.minRequiredDeposit),
-              ),
-              const SizedBox(width: 10),
-              _QuickActionButton(
-                label: context.tr('halfPrice'),
-                amount: widget.totalPrice / 2,
-                isSelected:
-                    (_selectedAmount - (widget.totalPrice / 2)).abs() < 0.01,
-                onTap: () => _updateAmount(widget.totalPrice / 2),
-              ),
-              const SizedBox(width: 10),
-              _QuickActionButton(
-                label: context.tr('fullPrice'),
-                amount: widget.totalPrice,
-                isSelected: (_selectedAmount - widget.totalPrice).abs() < 0.01,
-                onTap: () => _updateAmount(widget.totalPrice),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Divider
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-
-          // Custom Amount Input
-          Text(
-            context.tr('customAmount'),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            onChanged: _onManualInput,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
               color: ColorManager.wasabi,
             ),
-            decoration: InputDecoration(
-              hintText: context.tr('enterAmount'),
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              suffix: Text(
-                context.tr('egp'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: ColorManager.wasabi,
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: ColorManager.wasabi,
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: ColorManager.wasabi,
-                  width: 2,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-            ),
           ),
-          const SizedBox(height: 8),
-
-          // Error Message
-          if (!_isValidAmount)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 16,
-                    color: ColorManager.egyptianEarth,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _errorMessage,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: ColorManager.egyptianEarth,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1),
           const SizedBox(height: 12),
 
-          // Payment Summary
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.tr('paymentAmount'),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_selectedAmount.toStringAsFixed(0)} ${context.tr('egp')}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: ColorManager.wasabi,
-                    ),
-                  ),
-                ],
+              QuickActionButton(
+                label: context.tr('minDeposit'),
+                isSelected: widget.paidAmount == widget.minDeposit,
+                onTap: widget.onMinDepositTap,
+                amount: widget.minDeposit,
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    context.tr('remainingAmount'),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${remainingAmount.toStringAsFixed(0)} ${context.tr('egp')}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: remainingAmount > 0
-                          ? ColorManager.egyptianEarth
-                          : Colors.green,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 6),
+              QuickActionButton(
+                label: context.tr('halfAmount'),
+                isSelected: widget.paidAmount == widget.currentFinalPrice / 2,
+                onTap: widget.onHalfPriceTap,
+                amount: widget.currentFinalPrice / 2,
+              ),
+              const SizedBox(width: 6),
+              QuickActionButton(
+                label: context.tr('fullPrice'),
+                isSelected: widget.paidAmount == widget.currentFinalPrice,
+                onTap: widget.onFullPriceTap,
+                amount: widget.currentFinalPrice,
               ),
             ],
+          ),
+
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _controller, // استخدمنا الـ controller المعرف فوق
+            keyboardType: TextInputType.number,
+            style: TextStyle(color: Colors.grey),
+            decoration: InputDecoration(
+              labelText: context.tr('customAmount'),
+              suffixText: context.tr('egp'),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onChanged: (v) {
+              widget.onAmountEntered(double.tryParse(v) ?? 0);
+            },
+          ),
+
+          const Divider(height: 30),
+
+          _buildSummaryRow(
+            context.tr('originalTotal'),
+            "${widget.originalTotalPrice.toStringAsFixed(0)} ${context.tr('egp')}",
+          ),
+
+          if (widget.isOfferEnabled && widget.selectedPoints > 0)
+            _buildSummaryRow(
+              "${context.tr('offerDiscount')} (${widget.selectedPoints}%):",
+              "- ${(widget.originalTotalPrice - widget.currentFinalPrice).toStringAsFixed(0)} ${context.tr('egp')}",
+              color: Colors.green,
+            ),
+
+          _buildSummaryRow(
+            context.tr('requiredNow'),
+            "${widget.currentFinalPrice.toStringAsFixed(0)} ${context.tr('egp')}",
+            isBold: true,
+          ),
+          _buildSummaryRow(
+            context.tr('willBepaid'),
+            "${widget.paidAmount.toStringAsFixed(0)} ${context.tr('egp')}",
+            isBold: true,
+          ),
+
+          _buildSummaryRow(
+            context.tr('remainingForField'),
+            "${remainingAmount.toStringAsFixed(0)} ${context.tr('egp')}",
+            color: remainingAmount > 0 ? Colors.orange : ColorManager.wasabi,
           ),
         ],
       ),
     );
   }
-}
 
-class _QuickActionButton extends StatelessWidget {
-  final String label;
-  final double amount;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _QuickActionButton({
-    required this.label,
-    required this.amount,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: isSelected ? ColorManager.wasabi : Colors.white,
-            border: Border.all(
-              color: ColorManager.wasabi,
-              width: isSelected ? 2 : 1,
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: color ?? Colors.black,
             ),
-            borderRadius: BorderRadius.circular(8),
           ),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : ColorManager.wasabi,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${amount.toStringAsFixed(0)} ${context.tr('egp')}',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : ColorManager.wasabi,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

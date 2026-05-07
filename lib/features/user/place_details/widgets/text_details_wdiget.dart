@@ -13,7 +13,7 @@ class TextDetailsWidget extends StatelessWidget {
   });
 
   final double w;
-  final Place place;
+  final PlaceModel place;
   final double h;
 
   @override

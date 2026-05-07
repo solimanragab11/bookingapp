@@ -3,7 +3,7 @@ import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 
 abstract class HomeRepo {
-  Future<List<Place>> getAllPlaces();
+  Future<List<PlaceModel>> getAllPlaces();
 }
 
 class HomeRepoImpl implements HomeRepo {
@@ -12,7 +12,7 @@ class HomeRepoImpl implements HomeRepo {
   HomeRepoImpl(this._firebaseFunctions);
 
   @override
-  Future<List<Place>> getAllPlaces() async {
+  Future<List<PlaceModel>> getAllPlaces() async {
     // هنا بنقدر نهندل الـ Errors بشكل مركزي أو نغير مصدر البيانات
     return await _firebaseFunctions.getAllPlaces();
   }

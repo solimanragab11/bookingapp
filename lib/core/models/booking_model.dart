@@ -4,6 +4,7 @@ class BookingModel {
   final String id; // Unique ID for the booking
   final String userId;
   final String subPlaceId; // ID of the specific SubPlace being booked
+  final String bookedBy; // ID of the specific SubPlace being booked
   final DateTime bookingDate; // Date of the booking
   final Map<String, List<String>> timeSlots; // {"saturday": ["10:00", "11:00"]}
   final double totalPrice;
@@ -17,6 +18,7 @@ class BookingModel {
   final bool isCash;
 
   BookingModel({
+    required this.bookedBy,
     required this.id,
     required this.userId,
     required this.subPlaceId,
@@ -35,6 +37,7 @@ class BookingModel {
   /// ---------- FROM JSON ----------
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
+      bookedBy: json['bookedBy'] ?? '',
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
       subPlaceId: json['subPlaceId'] ?? '',
@@ -57,6 +60,7 @@ class BookingModel {
   /// ---------- TO JSON ----------
   Map<String, dynamic> toJson() {
     return {
+      'bookedBy': bookedBy,
       "id": id,
       "userId": userId,
       "subPlaceId": subPlaceId,

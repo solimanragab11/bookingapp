@@ -1,35 +1,41 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
 import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_states.dart';
 
 class PaymentStatusDialog extends StatelessWidget {
   final bool isSuccess;
   final double paidAmount;
+  final String orderId;
+  // تعريف الـ userId مباشرة من Firebase
+  final String userId = FirebaseAuth.instance.currentUser?.uid ?? "guest_user";
 
-  const PaymentStatusDialog({
+  PaymentStatusDialog({
     super.key,
     required this.isSuccess,
     required this.paidAmount,
+    required this.orderId,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Confirm booking if payment was successful
     if (isSuccess) {
       Future.delayed(Duration.zero, () {
-        try {
-          final cubit = context.read<BookingCubit>();
-          cubit.confirmBooking(
-            userId: 'test_user_123', // TODO: Get actual user ID
-            paidAmount: paidAmount,
-          );
-        } catch (e) {
-          print('[PaymentStatusDialog] Error confirming booking: $e');
+        final cubit = context.read<BookingCubit>();
+
+        // التحقق من أن الحالة BookingDataState قبل التأكيد
+        if (cubit.state is BookingDataState) {
+          final currentState = cubit.state as BookingDataState;
+          print(currentState.finalAmount);
+          cubit.confirmBooking(amountToPay: paidAmount);
+
+          // Debug عشان تتأكد في الـ Terminal
+          debugPrint('🎯 Sending Booking: isOffer = ${currentState.isOffer}');
         }
       });
     }
-
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       title: Icon(

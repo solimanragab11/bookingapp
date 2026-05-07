@@ -4,10 +4,11 @@ import 'package:remaking_booking_app_trail2/core/localization/localization_exten
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
 
 class TextDetailsBookingWidget extends StatelessWidget {
   final double w, h;
-  final Place place;
+  final PlaceModel place;
   final SubPlace subPlace;
   final Map<String, List<String>> availableDaysWithSlots;
   final String? selectedDay;
@@ -141,6 +142,15 @@ class TextDetailsBookingWidget extends StatelessWidget {
 
   // دروب داون "زجاجي"
   Widget _buildGlassDropdown(BuildContext context) {
+    // 1. استخراج الأيام وترتيبها بناءً على التاريخ الفعلي
+    final sortedDays = availableDaysWithSlots.keys.toList()
+      ..sort((a, b) {
+        // بنجيب التاريخ من الـ String (مثلاً بنحول 18/03 لتاريخ حقيقي)
+        DateTime dateA = _extractDate(a);
+        DateTime dateB = _extractDate(b);
+        return dateA.compareTo(dateB);
+      });
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -152,27 +162,44 @@ class TextDetailsBookingWidget extends StatelessWidget {
         child: DropdownButton<String>(
           value: selectedDay,
           isExpanded: true,
-          dropdownColor: ColorManager.cardSurface.withOpacity(
-            0.9,
-          ), // خلفية المنيو
+          dropdownColor: ColorManager.cardSurface.withOpacity(0.95),
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
             color: ColorManager.wasabi,
           ),
-          style: const TextStyle(
+          style: TextStyleMangare.headingStyle.copyWith(
+            // استخدمنا الـ font بتاعنا هنا
             color: Colors.white,
-            fontWeight: FontWeight.w500,
+            fontSize: 16,
           ),
-          items: availableDaysWithSlots.keys.map((day) {
+          items: sortedDays.map((day) {
             return DropdownMenuItem(
               value: day,
-              child: Text(context.tr(day.toLowerCase())),
+              child: Text(day), // بنعرض الـ String زي ما هو (wednesday 18/03)
             );
           }).toList(),
           onChanged: onDaySelected,
         ),
       ),
     );
+  }
+
+  // دالة سحرية عشان تطلع التاريخ من وسط الكلام وترتب بيه
+  DateTime _extractDate(String dayString) {
+    try {
+      // بياخد الجزء اللي فيه التاريخ (مثلاً 18/03)
+      List<String> parts = dayString.split(' ');
+      if (parts.length < 2) return DateTime.now();
+
+      List<String> dateParts = parts[1].split('/');
+      int day = int.parse(dateParts[0]);
+      int month = int.parse(dateParts[1]);
+
+      // بنفترض إن السنة هي السنة الحالية
+      return DateTime(DateTime.now().year, month, day);
+    } catch (e) {
+      return DateTime.now(); // لو حصل أي غلط يرجعه للآخر
+    }
   }
 
   Widget _buildUnavailableMessage(BuildContext context) {

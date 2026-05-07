@@ -9,7 +9,7 @@ class HomeLoading extends HomeStats {}
 
 // هنا المشكلة.. لازم تضيف "extends HomeStats"
 class HomeLoaded extends HomeStats {
-  final List<Place> places;
+  final List<PlaceModel> places;
   final String selectedTab;
   HomeLoaded({required this.places, this.selectedTab = "nearby"});
 }
@@ -22,6 +22,6 @@ class HomeError extends HomeStats {
 // لو لسه مستخدم HomeSelectTab ضيف لها الـ extends برضه
 class HomeSelectTab extends HomeStats {
   final String selectedTab;
-  final List<Place> places;
+  final List<PlaceModel> places;
   HomeSelectTab({required this.selectedTab, required this.places});
 }
