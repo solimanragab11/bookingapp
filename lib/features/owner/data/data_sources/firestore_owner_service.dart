@@ -537,6 +537,11 @@ class FirestoreOwnerService {
 
   Future<void> addBooking(BookingModel booking) async {
     try {
+      print('==========================');
+      print(booking.id);
+      print(booking.id);
+      print('==========================');
+
       await _firestore
           .collection('bookings')
           .doc(booking.id)
@@ -582,47 +587,86 @@ class FirestoreOwnerService {
         .map((doc) => PlaceModel.fromJson(doc.data() as Map<String, dynamic>));
   }
 
-  Future<DashboardStats> calculateDashboardStats(String placeId) async {
-    final snapshot = await _firestore
+  Stream<DashboardStats> getDashboardStatsStream({
+    required String placeId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    // تظبيط التاريخ لنهاية اليوم
+    final DateTime adjustedEndDate = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    return _firestore
         .collection('bookings')
         .where('placeId', isEqualTo: placeId)
-        .get();
+        .where(
+          'bookingDate',
+          isGreaterThanOrEqualTo: startDate.toIso8601String(),
+        )
+        .where(
+          'bookingDate',
+          isLessThanOrEqualTo: adjustedEndDate.toIso8601String(),
+        )
+        .snapshots() // تحويلها لـ Stream
+        .map((snapshot) {
+          // العدادات بتتصفّر مع كل تحديث جديد (Snapshot) جاي من السيرفر
+          double appRevenue = 0;
+          double manualRevenue = 0;
+          double appDeposits = 0;
+          double totalAppDepo = 0;
+          int appCount = 0;
+          int manualCount = 0;
+          int appHours = 0;
+          int manualHours = 0;
 
-    double appRevenue = 0;
-    double manualRevenue = 0;
-    int appCount = 0;
-    int manualCount = 0;
-    int totalHours = 0;
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final String bookedBy = (data['bookedBy'] ?? 'user')
+                .toString()
+                .toLowerCase();
+            final double totalP = (data['totalPrice'] ?? 0).toDouble();
+            final double appDepo = (data['paidAmount'] ?? 0).toDouble();
+            final double paidAmt = (data['paidAmount'] ?? 0).toDouble();
+            final bool isCash = data['isCash'] ?? false;
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final String bookedBy = data['bookedBy'] ?? 'user';
-      final double totalPrice = (data['totalPrice'] ?? 0).toDouble();
+            // حساب الساعات
+            int hoursInThisDoc = 0;
+            if (data['timeSlots'] != null && data['timeSlots'] is Map) {
+              final Map<String, dynamic> slots = data['timeSlots'];
+              slots.forEach((day, times) {
+                if (times is List) hoursInThisDoc += times.length;
+              });
+            }
 
-      // حساب الساعات من الـ timeSlots Map
-      final Map<String, dynamic> timeSlots = data['timeSlots'] ?? {};
-      int hoursInThisBooking = 0;
-      timeSlots.forEach((key, value) {
-        if (value is List) hoursInThisBooking += value.length;
-      });
+            if (bookedBy == 'owner' || bookedBy == 'admin') {
+              manualCount++;
+              manualRevenue += totalP;
+              manualHours += hoursInThisDoc;
+            } else {
+              appCount++;
+              appRevenue += totalP;
+              appHours += hoursInThisDoc;
+              totalAppDepo += appDepo;
+              if (!isCash) appDeposits += paidAmt;
+            }
+          }
 
-      totalHours += hoursInThisBooking;
-
-      if (bookedBy == 'owner') {
-        manualCount++;
-        manualRevenue += totalPrice;
-      } else {
-        appCount++;
-        appRevenue += totalPrice;
-      }
-    }
-
-    return DashboardStats(
-      totalAppRevenue: appRevenue,
-      totalManualRevenue: manualRevenue,
-      appReservationsCount: appCount,
-      manualReservationsCount: manualCount,
-      totalBookedHours: totalHours,
-    );
+          return DashboardStats(
+            totalAppRevenue: appRevenue,
+            totalManualRevenue: manualRevenue,
+            totalAppDeposits: appDeposits,
+            appHours: appHours,
+            manualHours: manualHours,
+            appCount: appCount,
+            manualCount: manualCount,
+          );
+        });
   }
 }

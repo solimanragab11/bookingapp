@@ -25,7 +25,11 @@ class OwnerMainScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: ColorManager.wasabi,
         onPressed: () {
-          Navigator.pushReplacementNamed(context, Routes.addPlace);
+          Navigator.pushNamed(
+            context,
+            '/ownerDashboard',
+            arguments: "CucwfN7ySnMVVZKGGPfL", // بنبعت الـ ID هنا
+          );
         },
         child: const Icon(Icons.add, color: Colors.black),
       ),

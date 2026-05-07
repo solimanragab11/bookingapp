@@ -7,6 +7,7 @@ class Routes {
   static const String authWrapper = '/authwrapper';
   static const String addPlace = '/addplace';
   static const String bookingPage = '/bookingpage';
+  static const String ownerMainScreen = '/ownerMainScreen';
   static const String ownerDashboard = '/ownerDashboard';
   static const String placeBookings = '/placeBookings';
   static const String map = '/map';

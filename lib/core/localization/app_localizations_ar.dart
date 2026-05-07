@@ -200,5 +200,21 @@ class AppLocalizationsAr {
     "available_status": "متاح",
     "msg_time_started": "هذا الموعد قد بدأ بالفعل",
     "msg_already_booked": "عذراً، هذا الموعد محجوز مسبقاً",
+
+    "business_dashboard": "لوحة تحكم النشاط",
+    "showing_data_from": "عرض البيانات من",
+    "to": "إلى",
+    "total_revenue_gross": "إجمالي الإيرادات",
+    "app_deposits": "عربون التطبيق",
+    "money_held_by_app": "مبالغ في محفظة الأبلكيشن",
+    "app_work": "شغل الأبلكيشن",
+    "hours_from_users": "ساعات محجوزة من المستخدمين",
+    "manual_revenue": "إيراد يدوي",
+    "cash_collected_by_you": "كاش استلمته يدويًا",
+    "resv_count": "عدد الحجوزات",
+    "app_vs_manual": "التطبيق / يدوي",
+    "usage_performance": "أداء الإشغال",
+    "total_op_hours_desc": "إجمالي ساعات التشغيل في الفترة",
+    "hrs_unit": " ساعة",
   };
 }

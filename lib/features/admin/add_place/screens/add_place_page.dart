@@ -71,7 +71,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                   showSuccessDialog(context);
                   Navigator.pushReplacementNamed(
                     context,
-                    Routes.ownerDashboard,
+                    Routes.ownerMainScreen,
                   );
                 } else if (state.errorMessage != null) {
                   if (state.errorMessage != null) {

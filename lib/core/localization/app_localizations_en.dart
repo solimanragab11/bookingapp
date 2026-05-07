@@ -198,5 +198,12 @@ class AppLocalizationsEn {
     "available_status": "Available",
     "msg_time_started": "This time has already started",
     "msg_already_booked": "Sorry, this slot is already booked",
+    "business_dashboard": "Business Dashboard",
+    "app_deposits": "App Deposits",
+    "app_work": "App Work",
+    "manual_revenue": "Manual Revenue",
+    "resv_count": "Resv. Count",
+    "usage_performance": "Usage Performance",
+    "hrs_unit": " Hrs",
   };
 }

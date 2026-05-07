@@ -38,7 +38,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         if (state is AuthSuccess) {
           _navigate(
             state.role == 'owner'
-                ? Routes.ownerDashboard
+                ? Routes.ownerMainScreen
                 : state.role == 'admin'
                 ? Routes.addPlace
                 : Routes.home,

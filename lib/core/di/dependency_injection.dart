@@ -3,6 +3,8 @@ import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/features/owner/data/data_sources/firestore_owner_service.dart';
 import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
+// استيراد الـ Cubit الجديد
+import 'package:remaking_booking_app_trail2/features/owner/dashboard/logic/dashboard_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -19,10 +21,15 @@ Future<void> setupGetIt() async {
     getIt.registerLazySingleton<OwnerRepoImpl>(() => OwnerRepoImpl(getIt()));
   }
 
-  // 3. Cubit
+  // 3. Cubits
   if (!getIt.isRegistered<ManageBookingPlaceCubit>()) {
     getIt.registerLazySingleton<ManageBookingPlaceCubit>(
       () => ManageBookingPlaceCubit(getIt()),
     );
+  }
+
+  // تسجيل الـ DashboardCubit الجديد
+  if (!getIt.isRegistered<DashboardCubit>()) {
+    getIt.registerFactory<DashboardCubit>(() => DashboardCubit());
   }
 }

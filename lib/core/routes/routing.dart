@@ -16,6 +16,7 @@ import 'package:remaking_booking_app_trail2/features/auth/login/presentation/log
 import 'package:remaking_booking_app_trail2/features/auth/repo/firebase_auth_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/auth/signup/cubit/signup_cubit.dart.dart';
 import 'package:remaking_booking_app_trail2/features/auth/signup/presentation/signup_page.dart';
+import 'package:remaking_booking_app_trail2/features/owner/dashboard/screens/dashboard_screen.dart';
 import 'package:remaking_booking_app_trail2/features/owner/data/data_sources/firestore_owner_service.dart';
 import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
@@ -99,7 +100,7 @@ class AppRouter {
         );
 
       // ✅ FIXED: Owner Dashboard with proper BlocProvider setup
-      case Routes.ownerDashboard:
+      case Routes.ownerMainScreen:
         return MaterialPageRoute(
           builder: (_) => BlocProvider<ManageBookingPlaceCubit>(
             // التعديل السحري: هنستخدم getIt مباشرة وننادي الداتا هنا
@@ -161,7 +162,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const AdminSelectPlaceScreen(),
         );
-
+      case '/ownerDashboard':
+        final args = settings.arguments;
+        args is String ? args : "";
+        final placeId = args as String; // بناخد الـ ID من الـ arguments
+        return MaterialPageRoute(
+          builder: (_) => OwnerDashboardScreen(placeId: placeId),
+        );
       default:
         return MaterialPageRoute(
           builder: (_) => Builder(
