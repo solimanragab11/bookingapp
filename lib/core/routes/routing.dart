@@ -24,7 +24,7 @@ import 'package:remaking_booking_app_trail2/features/admin/add_place/screens/add
 import 'package:remaking_booking_app_trail2/features/admin/offer_mngmnt/presentation/offer_Screen.dart';
 import 'package:remaking_booking_app_trail2/features/owner/place_schedule/screen/place_schedule_screen.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/map_selection_screen.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/screen/owner_main_screen.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/screen/owner_main_screen.dart';
 import 'package:remaking_booking_app_trail2/features/admin/show_all_places/all_screen.dart';
 import 'package:remaking_booking_app_trail2/features/user/booking/presentation/booking_page.dart';
 import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';

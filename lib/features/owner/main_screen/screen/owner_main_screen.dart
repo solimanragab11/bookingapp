@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/owner_main_screen_header.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/states/empty_places_view.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/states/error_places_view.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/states/places_list_view.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/owner_main_screen_header.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/states/empty_places_view.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/states/error_places_view.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/states/places_list_view.dart';
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_states.dart';
 

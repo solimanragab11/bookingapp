@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/place_card.dart';
+import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/place_card.dart';
 
 class PlacesListView extends StatelessWidget {
   final List<PlaceModel> places;
