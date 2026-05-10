@@ -11,7 +11,7 @@ import 'package:remaking_booking_app_trail2/core/widgets/show_success_dialog.dar
 import 'package:remaking_booking_app_trail2/core/widgets/snackbar_utils.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_state.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_searchBar.dart';
+import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_searchbar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/app_bar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_stepper_controls.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/basic_info_step.dart';
@@ -78,7 +78,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   // ─── BlocListener ─────────────────────────────────────────────────────────
 
   bool _listenWhen(AddPlaceState prev, AddPlaceState curr) {
-    final newError =
+    final newError =  
         curr.errorMessage != null && curr.errorMessage != prev.errorMessage;
     final newSuccess = curr.isSuccess && !prev.isSuccess;
     return newError || newSuccess;

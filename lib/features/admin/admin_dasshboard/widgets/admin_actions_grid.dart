@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_cubit.dart';
 
 class AdminActionsGrid extends StatelessWidget {
   final bool isTablet;
@@ -23,21 +25,34 @@ class AdminActionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.pushNamed(context, Routes.addPlace);
           },
+          isLogout: false,
         ),
         _ActionCard(
           title: context.tr("Delete Place"),
           icon: Icons.delete_forever,
           onTap: () {},
+          isLogout: false,
         ),
         _ActionCard(
           title: context.tr("Manage Auth"),
           icon: Icons.admin_panel_settings,
           onTap: () {},
+          isLogout: false,
         ),
         _ActionCard(
           title: context.tr("Promotions"),
           icon: Icons.campaign_rounded,
           onTap: () {},
+          isLogout: false,
+        ),
+        _ActionCard(
+          title: context.tr("logout"),
+          icon: Icons.logout,
+          onTap: () {
+            context.read<AuthCubit>().logout();
+            Navigator.pushReplacementNamed(context, Routes.authWrapper);
+          },
+          isLogout: true,
         ),
       ],
     );
@@ -48,11 +63,12 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback onTap;
-
+  final isLogout;
   const _ActionCard({
     required this.title,
     required this.icon,
     required this.onTap,
+    required this.isLogout,
   });
 
   @override
@@ -67,10 +83,9 @@ class _ActionCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                ColorManager.wasabi.withOpacity(0.15),
-                Colors.transparent,
-              ],
+              colors: isLogout
+                  ? [Colors.red, Colors.red]
+                  : [ColorManager.wasabi.withOpacity(0.15), Colors.transparent],
             ),
             borderRadius: BorderRadius.circular(25),
             border: Border.all(color: ColorManager.wasabi.withOpacity(0.2)),
@@ -78,7 +93,11 @@ class _ActionCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: ColorManager.wasabi, size: 36),
+              Icon(
+                icon,
+                color: isLogout ? Colors.white : ColorManager.wasabi,
+                size: 36,
+              ),
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),

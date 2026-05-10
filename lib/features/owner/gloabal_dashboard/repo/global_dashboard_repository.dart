@@ -18,7 +18,7 @@ class GlobalDashboardRepository {
         ownerId: ownerId!,
         month: month,
       );
-
+      print(report.placesBreakdown.length);
       return report;
     } catch (e) {
       // رمي Exception واضح يساعدنا في الـ Debugging لو حصلت مشكلة في الـ Firestore

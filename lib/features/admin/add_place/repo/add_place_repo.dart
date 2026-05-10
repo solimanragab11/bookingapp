@@ -8,8 +8,9 @@ class AddPlaceRepo {
   final AdminService _adminService;
   AddPlaceRepo(this._adminService);
 
-  Future<List<UserModel>> searchOwners(String phone) =>
-      _adminService.searchOwnersByPhone(phone);
+  Future<List<UserModel>> searchOwners(String phone) {
+    return _adminService.searchOwnersByPhone(phone);
+  }
 
   Future<void> uploadAndSavePlace({required PlaceModel place}) async {
     String placeId = place.id.isEmpty

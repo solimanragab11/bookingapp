@@ -47,16 +47,21 @@ class AdminService {
   // --- باقي الدوال (Future) كما هي لأنها Actions وليست Data Monitoring ---
 
   Future<List<UserModel>> searchOwnersByPhone(String phone) async {
-    final querySnapshot = await _firestore
-        .collection('users')
-        .where('userRole', isEqualTo: 'owner')
-        .where('phoneNumber', isGreaterThanOrEqualTo: phone)
-        .where('phoneNumber', isLessThanOrEqualTo: '$phone\uf8ff')
-        .get();
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('userRole', isEqualTo: 'owner')
+          .where('phoneNumber', isGreaterThanOrEqualTo: phone)
+          .where('phoneNumber', isLessThanOrEqualTo: '$phone\uf8ff')
+          .get();
 
-    return querySnapshot.docs
-        .map((doc) => UserModel.fromJson(doc.data()))
-        .toList();
+      return querySnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .toList();
+    } catch (e) {
+      print(e);
+      return [];
+    }
   }
 
   Future<String> uploadFile(File file, String path) async {

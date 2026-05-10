@@ -28,6 +28,7 @@ class _AddPlaceSearchBarState extends State<AddPlaceSearchBar> {
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   void _onTextChanged(String value) {
+    print(value);
     context.read<AddPlaceCubit>().searchOwner(value);
   }
 

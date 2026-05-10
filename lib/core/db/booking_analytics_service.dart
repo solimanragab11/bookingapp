@@ -8,28 +8,34 @@ class BookingAnalyticsService {
   // --- 1. Low-Level Data Fetching (التجريد لجلب البيانات الخام) ---
 
   /// جلب الحجوزات الخام من السيرفر بناءً على المالك والفترة الزمنية
-  Future<List<BookingModel>> fetchRawBookings({
+  Future<List<BookingModel>> getOwnerBookingsByDate({
     required String ownerId,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    try {
-      final snapshot = await _firestore
-          .collection('bookings')
-          .where('ownerId', isEqualTo: ownerId)
-          .where(
-            'createdAt',
-            isGreaterThanOrEqualTo: startDate.toIso8601String(),
-          )
-          .where('createdAt', isLessThanOrEqualTo: endDate.toIso8601String())
-          .get();
-      return snapshot.docs
-          .map((doc) => BookingModel.fromJson(doc.data()))
-          .toList();
-    } catch (e) {
-      debugPrint('❌ Error fetching bookings: $e');
-      rethrow;
-    }
+    // 1. هات الـ IDs بتاعة الأماكن اللي بيملكها الـ Owner ده
+    final placesSnapshot = await FirebaseFirestore.instance
+        .collection('places')
+        .where('ownerId', isEqualTo: ownerId)
+        .get();
+
+    if (placesSnapshot.docs.isEmpty) return [];
+
+    List<String> placeIds = placesSnapshot.docs.map((doc) => doc.id).toList();
+
+    // 2. كويري الحجوزات مع فلتر التاريخ
+    // ملاحظة: الـ ISO8601 string بيترتب صح أبجدياً (Lexicographical order)
+    // فالمقارنة بـ isGreaterThanOrEqualTo هتشتغل تمام مع الـ String
+    final bookingsSnapshot = await FirebaseFirestore.instance
+        .collection('bookings')
+        .where('placeId', whereIn: placeIds) // فلتر الأماكن
+        .where('createdAt', isGreaterThanOrEqualTo: startDate.toIso8601String())
+        .where('createdAt', isLessThanOrEqualTo: endDate.toIso8601String())
+        .get();
+
+    return bookingsSnapshot.docs
+        .map((doc) => BookingModel.fromJson(doc.data()))
+        .toList();
   }
 
   // --- 2. Data Filtering (تجريد عملية الفلترة) ---
@@ -62,7 +68,7 @@ class BookingAnalyticsService {
     final firstDay = DateTime(month.year, month.month, 1);
     final lastDay = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
-    final allBookings = await fetchRawBookings(
+    final allBookings = await getOwnerBookingsByDate(
       ownerId: ownerId,
       startDate: firstDay,
       endDate: lastDay,
