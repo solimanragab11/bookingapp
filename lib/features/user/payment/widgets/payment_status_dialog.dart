@@ -23,12 +23,12 @@ class PaymentStatusDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isSuccess) {
       Future.delayed(Duration.zero, () {
+        // ignore: use_build_context_synchronously
         final cubit = context.read<BookingCubit>();
 
         // التحقق من أن الحالة BookingDataState قبل التأكيد
         if (cubit.state is BookingDataState) {
           final currentState = cubit.state as BookingDataState;
-          print(currentState.finalAmount);
           cubit.confirmBooking(amountToPay: paidAmount);
 
           // Debug عشان تتأكد في الـ Terminal

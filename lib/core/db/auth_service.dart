@@ -79,7 +79,7 @@ class AuthService {
             .doc(user.uid)
             .get();
         if (doc.exists) {
-          UserModel user = await UserModel.fromJson(
+          UserModel user = UserModel.fromJson(
             doc.data() as Map<String, dynamic>,
           );
           return user.id;

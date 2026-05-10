@@ -84,8 +84,6 @@ class OwnerRepoImpl implements OwnerRepository {
     required BookingModel booking,
   }) async {
     try {
-      print('=========================');
-
       // تنفيذ العمليتين Atomic من خلال السيرفس
       await ownerService.bookSlots(
         placeId: placeId,
@@ -94,7 +92,6 @@ class OwnerRepoImpl implements OwnerRepository {
         userId: userId,
         orderId: booking.id,
       );
-      print('=========================');
       await ownerService.addBooking(booking);
       return Right(unit);
     } catch (e) {
@@ -107,10 +104,7 @@ class OwnerRepoImpl implements OwnerRepository {
     try {
       phoneNumber = '+2$phoneNumber';
       final userId = await ownerService.getUserIdByPhoneNumber(phoneNumber);
-      print("userId");
-      print(phoneNumber);
-      print(userId);
-      print('userId');
+
       return userId; // سيرجع null لو مش موجود
     } catch (e) {
       debugPrint("❌ Error in getUserIdByPhone: $e");

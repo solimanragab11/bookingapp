@@ -64,8 +64,9 @@ mixin BookingHelper {
           );
         }
       } else {
-        if (context.mounted)
+        if (context.mounted) {
           showSnackBar(context, context.tr('failedPaymentUrl'), Colors.red);
+        }
       }
     } catch (e) {
       if (context.mounted) {

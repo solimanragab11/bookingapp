@@ -74,8 +74,9 @@ class _ActivateOfferScreenState extends State<ActivateOfferScreen> {
                         firstDate: DateTime.now(),
                         lastDate: DateTime(2030),
                       );
-                      if (picked != null)
+                      if (picked != null) {
                         setState(() => _selectedDate = picked);
+                      }
                     },
                   ),
                   const SizedBox(height: 30),

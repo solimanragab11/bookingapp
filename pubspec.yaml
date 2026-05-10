@@ -13,6 +13,7 @@ dependencies:
   firebase_auth: ^6.1.2
   cloud_firestore: ^6.1.0
   fl_chart: ^0.70.2
+  flutter_slidable: ^3.1.1 
   firebase_storage: ^13.0.4
   flutter_bloc: ^9.1.1
   bloc: ^9.1.0

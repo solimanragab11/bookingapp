@@ -500,7 +500,6 @@ class FirestoreOwnerService {
             const Duration(seconds: 15),
           ); // لو عدى 15 ثانية، ارمي Exception وفك الـ Loading
     } catch (e) {
-      print("خطأ في الإلغاء: $e");
       return false;
     }
   }
@@ -537,11 +536,6 @@ class FirestoreOwnerService {
 
   Future<void> addBooking(BookingModel booking) async {
     try {
-      print('==========================');
-      print(booking.id);
-      print(booking.id);
-      print('==========================');
-
       await _firestore
           .collection('bookings')
           .doc(booking.id)
@@ -592,35 +586,29 @@ class FirestoreOwnerService {
     required DateTime startDate,
     required DateTime endDate,
   }) {
-    // تظبيط التاريخ لنهاية اليوم
-    final DateTime adjustedEndDate = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-      23,
-      59,
-      59,
-      999,
-    );
+    // 1. تظبيط البداية: YYYY-MM-DDT00:00:00 (بداية اليوم)
+    final String startStr =
+        "${startDate.year.toString().padLeft(4, '0')}-"
+        "${startDate.month.toString().padLeft(2, '0')}-"
+        "${startDate.day.toString().padLeft(2, '0')}T00:00:00.000";
+
+    // 2. تظبيط النهاية: YYYY-MM-DDT23:59:59.999 (نهاية اليوم)
+    // الـ padLeft مهمة جداً عشان لو الشهر 5 يتكتب 05، فالمقارنة الأبجدية تظبط
+    final String endStr =
+        "${endDate.year.toString().padLeft(4, '0')}-"
+        "${endDate.month.toString().padLeft(2, '0')}-"
+        "${endDate.day.toString().padLeft(2, '0')}T23:59:59.999";
 
     return _firestore
         .collection('bookings')
         .where('placeId', isEqualTo: placeId)
-        .where(
-          'bookingDate',
-          isGreaterThanOrEqualTo: startDate.toIso8601String(),
-        )
-        .where(
-          'bookingDate',
-          isLessThanOrEqualTo: adjustedEndDate.toIso8601String(),
-        )
-        .snapshots() // تحويلها لـ Stream
+        .where('createdAt', isGreaterThanOrEqualTo: startStr)
+        .where('createdAt', isLessThanOrEqualTo: endStr)
+        .snapshots()
         .map((snapshot) {
-          // العدادات بتتصفّر مع كل تحديث جديد (Snapshot) جاي من السيرفر
           double appRevenue = 0;
           double manualRevenue = 0;
           double appDeposits = 0;
-          double totalAppDepo = 0;
           int appCount = 0;
           int manualCount = 0;
           int appHours = 0;
@@ -632,7 +620,6 @@ class FirestoreOwnerService {
                 .toString()
                 .toLowerCase();
             final double totalP = (data['totalPrice'] ?? 0).toDouble();
-            final double appDepo = (data['paidAmount'] ?? 0).toDouble();
             final double paidAmt = (data['paidAmount'] ?? 0).toDouble();
             final bool isCash = data['isCash'] ?? false;
 
@@ -645,7 +632,7 @@ class FirestoreOwnerService {
               });
             }
 
-            if (bookedBy == 'owner' || bookedBy == 'admin') {
+            if (bookedBy == 'owner') {
               manualCount++;
               manualRevenue += totalP;
               manualHours += hoursInThisDoc;
@@ -653,7 +640,6 @@ class FirestoreOwnerService {
               appCount++;
               appRevenue += totalP;
               appHours += hoursInThisDoc;
-              totalAppDepo += appDepo;
               if (!isCash) appDeposits += paidAmt;
             }
           }
@@ -668,5 +654,92 @@ class FirestoreOwnerService {
             manualCount: manualCount,
           );
         });
+  }
+
+  Stream<DashboardStats> getAllPlacesStatsStream({
+    required String ownerId, // 👈 بنبعت الـ ownerId بدل الـ placeId
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final String startStr = _formatDateForQuery(startDate, isEnd: false);
+    final String endStr = _formatDateForQuery(endDate, isEnd: true);
+
+    return _firestore
+        .collection('bookings')
+        .where('ownerId', isEqualTo: ownerId) // 👈 بنجيب حجوزات كل الملاعب
+        .where('bookingDate', isGreaterThanOrEqualTo: startStr)
+        .where('bookingDate', isLessThanOrEqualTo: endStr)
+        .snapshots()
+        .map((snapshot) {
+          // بنستخدم نفس الـ Logic بتاع الحسابات اللي عملناه قبل كدة
+          // الـ DashboardStats هتجمع تلقائياً كل الداتا اللي راجعة
+          return _calculateStatsFromSnapshot(snapshot);
+        });
+  }
+
+  // 1. ميثود تظبيط التاريخ عشان الـ Query يطلع "مسطرة"
+  String _formatDateForQuery(DateTime date, {required bool isEnd}) {
+    if (isEnd) {
+      // لو نهاية الفترة، بنخليها لآخر ثانية في اليوم
+      return "${date.year.toString().padLeft(4, '0')}-"
+          "${date.month.toString().padLeft(2, '0')}-"
+          "${date.day.toString().padLeft(2, '0')}T23:59:59.999";
+    } else {
+      // لو بداية الفترة، من أول لحظة في اليوم
+      return "${date.year.toString().padLeft(4, '0')}-"
+          "${date.month.toString().padLeft(2, '0')}-"
+          "${date.day.toString().padLeft(2, '0')}T00:00:00.000";
+    }
+  }
+
+  // 2. ميثود الحسابات (المنطق اللي جاب لنا الـ 8800 والـ 2000 في اللوجز)
+  DashboardStats _calculateStatsFromSnapshot(QuerySnapshot snapshot) {
+    double appRevenue = 0;
+    double manualRevenue = 0;
+    double appDeposits = 0;
+    int appCount = 0;
+    int manualCount = 0;
+    int appHours = 0;
+    int manualHours = 0;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final String bookedBy = (data['bookedBy'] ?? 'user')
+          .toString()
+          .toLowerCase();
+      final double totalP = (data['totalPrice'] ?? 0).toDouble();
+      final double paidAmt = (data['paidAmount'] ?? 0).toDouble();
+      final bool isCash = data['isCash'] ?? false;
+
+      // حساب الساعات من الـ timeSlots
+      int hoursInThisDoc = 0;
+      if (data['timeSlots'] != null && data['timeSlots'] is Map) {
+        final Map<String, dynamic> slots = data['timeSlots'];
+        slots.forEach((day, times) {
+          if (times is List) hoursInThisDoc += times.length;
+        });
+      }
+
+      if (bookedBy == 'owner') {
+        manualCount++;
+        manualRevenue += totalP;
+        manualHours += hoursInThisDoc;
+      } else {
+        appCount++;
+        appRevenue += totalP;
+        appHours += hoursInThisDoc;
+        if (!isCash) appDeposits += paidAmt;
+      }
+    }
+
+    return DashboardStats(
+      totalAppRevenue: appRevenue,
+      totalManualRevenue: manualRevenue,
+      totalAppDeposits: appDeposits,
+      appHours: appHours,
+      manualHours: manualHours,
+      appCount: appCount,
+      manualCount: manualCount,
+    );
   }
 }

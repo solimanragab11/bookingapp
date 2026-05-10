@@ -13,7 +13,7 @@ class AppLocalizationsEn {
     'dontHaveAccount': 'Don\'t have an account?',
     'alreadyHaveAccount': 'Already have an account?',
     'dontHaveAccountSignUp': 'Don\'t have an account? Sign Up',
-    'youAlreadyHaveAccountLogin': 'Already have an account? Log In',
+    'YouAlreadyHaveAccount? Log In': 'Already have an account? Log In',
     'agreeToTerms': 'I agree to the Terms of Service',
     'termsOfService': 'Terms of Service',
     'janeDoe': 'Jane Doe',
@@ -205,5 +205,26 @@ class AppLocalizationsEn {
     "resv_count": "Resv. Count",
     "usage_performance": "Usage Performance",
     "hrs_unit": " Hrs",
+
+    // Missing keys added during localization audit
+    "originalTotal": "Original Total",
+    "phoneInvalid": "Invalid phone number",
+    "place_not_found": "Place not found",
+    "Pleaseenteryour": "Please enter your",
+    "remainingForField": "Remaining for field",
+    "requiredNow": "Required now",
+    "resendAvailable": "Resend available",
+    "resendCode": "Resend code",
+    "resendIn": "Resend in",
+    "revenue_split": "Revenue Split",
+    "Signuptounlockallbookingopportunities.":
+        "Sign up to unlock all booking opportunities.",
+    "total_money__by_app": "Total money by app",
+    "total_op_hours_desc": "Total operational hours description",
+    "usePoints": "Use Points",
+    "using": "Using",
+    "viewOnMap": "View on Map",
+    "willBepaid": "Will be paid",
+    "confirmAccount": "Confirm Account",
   };
 }

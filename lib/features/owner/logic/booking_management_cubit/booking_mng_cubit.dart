@@ -20,7 +20,6 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
 
   Future<void> getMyPlacesOnce() async {
     emit(ManagePlaceLoading('from palces loading'));
-    print("you are geting places!!");
     // 2. نادى الدالة واستنى النتيجة
     final result = await _ownerRepository.getMyPlacesOnce();
     // 3. افتح الصندوق (الـ Either)
@@ -66,7 +65,7 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
         id: const Uuid().v4(),
         userId: userId ?? 'unknown_user',
         subPlaceId: subPlaceId,
-        bookingDate: bookingDate,
+        createdAt: DateTime.now(),
         timeSlots: formattedSlots,
         totalPrice: totalPrice,
         paidAmount: deposit,

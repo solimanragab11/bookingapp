@@ -76,7 +76,8 @@ class SubPlacesListSection extends StatelessWidget {
               Expanded(
                 child: _buildSmallField(
                   "Size (e.g. 5x5)",
-                  (val) => subPlaces[index]['size'] = val,
+                  (val) => subPlaces[index]['playersNumber'] = val,
+                  isNumber: true,
                 ),
               ),
             ],

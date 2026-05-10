@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_Wrapper_states.dart';
+import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_wrapper_states.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
@@ -29,7 +29,7 @@ class AuthCubit extends Cubit<AuthState> {
       }
 
       final role = currentUser!.userRole;
-      if (role != 'owner' && role != 'user') {
+      if (role != 'owner' && role != 'user' && role != 'admin') {
         // Unknown role — treat as unauthenticated to avoid routing into a broken screen.
         await _authService.signOut();
         currentUser = null;

@@ -58,7 +58,6 @@ class StatsGrid extends StatelessWidget {
             // الصف الثاني: شغل التطبيق (Full Row)
             SizedBox(
               width: double.infinity,
-              height: size.height * 0.16,
               child: StatCardItem(
                 title: context.tr('app_work'),
                 value: "${stats.appHours} ${context.tr('hrs_unit')}",

@@ -216,5 +216,25 @@ class AppLocalizationsAr {
     "usage_performance": "أداء الإشغال",
     "total_op_hours_desc": "إجمالي ساعات التشغيل في الفترة",
     "hrs_unit": " ساعة",
+
+    // Missing keys added during localization audit
+    "originalTotal": "الإجمالي الأصلي",
+    "phoneInvalid": "رقم الهاتف غير صحيح",
+    "place_not_found": "المكان غير موجود",
+    "Pleaseenteryour": "يرجى إدخال",
+    "remainingForField": "المتبقي للحقل",
+    "requiredNow": "مطلوب الآن",
+    "resendAvailable": "إعادة الإرسال متاحة",
+    "resendCode": "إعادة إرسال الكود",
+    "resendIn": "إعادة الإرسال خلال",
+    "revenue_split": "تقسيم الإيرادات",
+    "Signuptounlockallbookingopportunities.": "سجل لفتح جميع فرص الحجز.",
+    "total_money__by_app": "إجمالي المال بواسطة التطبيق",
+    "usePoints": "استخدام النقاط",
+    "using": "استخدام",
+    "viewOnMap": "عرض على الخريطة",
+    "willBepaid": "سيتم الدفع",
+    "YouAlreadyHaveAccount? Log In": "عندك حساب بالفعل؟ سجل دخول",
+    "confirmAccount": "بناكد الحساب",
   };
 }

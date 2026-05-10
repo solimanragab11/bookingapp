@@ -73,7 +73,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         id: const Uuid().v4(),
         userId: userId ?? 'unknown_user',
         subPlaceId: subPlaceId,
-        bookingDate: bookingDate,
+        createdAt: bookingDate,
         timeSlots: formattedSlots,
         totalPrice: totalPrice,
         paidAmount: deposit,

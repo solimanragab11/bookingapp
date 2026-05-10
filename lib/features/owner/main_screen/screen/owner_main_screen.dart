@@ -17,21 +17,23 @@ class OwnerMainScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    print(
-      "Current UI State: ${context.watch<ManageBookingPlaceCubit>().state}",
-    );
+
     return Scaffold(
       backgroundColor: ColorManager.noirDeVigne,
       floatingActionButton: FloatingActionButton(
         backgroundColor: ColorManager.wasabi,
         onPressed: () {
+          // بنستخدم pushNamed عشان الـ Navigator يروح للـ AppRouter
           Navigator.pushNamed(
             context,
-            '/ownerDashboard',
-            arguments: "CucwfN7ySnMVVZKGGPfL", // بنبعت الـ ID هنا
+            Routes.globalDashboard,
+            arguments: [''], // ابعت لستة الـ IDs اللي معاك هنا
           );
         },
-        child: const Icon(Icons.add, color: Colors.black),
+        child: const Icon(
+          Icons.space_dashboard,
+          color: ColorManager.cardSurface,
+        ),
       ),
       body: Stack(
         children: [

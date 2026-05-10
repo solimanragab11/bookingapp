@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/di/dependency_injection.dart'; // تأكد من وجود getIt
+import 'package:remaking_booking_app_trail2/core/di/dependency_injection.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
 import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/dashboard_app_bar.dart';
@@ -28,7 +28,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final now = DateTime.now();
     selectedRange = DateTimeRange(
       start: DateTime(now.year, now.month, 1),
-      end: now,
+      end: now.add(const Duration(days: 1)),
     );
   }
 
@@ -37,75 +37,86 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final size = MediaQuery.of(context).size;
 
     return BlocProvider(
-      // بنعمل إنشاء للكوبيت وبنطلب الداتا فوراً أول ما الشاشة تفتح
+      // إنشاء الكوبيت باستخدام getIt
       create: (context) => getIt<DashboardCubit>()
         ..getRealTimeStats(
           widget.placeId,
           selectedRange!.start,
           selectedRange!.end,
         ),
-      child: Scaffold(
-        backgroundColor: ColorManager.noirDeVigne,
-        appBar: DashboardAppBar(
-          onDatePicked: (range) {
-            setState(() => selectedRange = range);
-            // لما التاريخ يتغير، بننادي الكوبيت تاني عشان يفتح Stream جديد
-            context.read<DashboardCubit>().getRealTimeStats(
-              widget.placeId,
-              selectedRange!.start,
-              selectedRange!.end,
-            );
-          },
-        ),
-        body: Stack(
-          children: [
-            BackGround(h: size.height, w: size.width),
-            BlocBuilder<DashboardCubit, DashboardState>(
-              builder: (context, state) {
-                if (state is DashboardLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: ColorManager.wasabi,
-                    ),
-                  );
-                }
-
-                if (state is DashboardLoaded) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        DateDisplayBanner(range: selectedRange!),
-                        const SizedBox(height: 20),
-                        MainRevenueCard(totalRevenue: state.stats.totalRevenue),
-                        const SizedBox(height: 16),
-                        StatsGrid(
-                          stats: state.stats,
-                        ), // مررنا الـ stats الحقيقية
-                        const SizedBox(height: 16),
-                        UsagePerformanceCard(
-                          totalHours: state.stats.totalHours,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (state is DashboardError) {
-                  return Center(
-                    child: Text(
-                      state.message,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  );
-                }
-
-                return const SizedBox.shrink();
+      child: Builder(
+        // 👈 السحر هنا: الـ Builder بيدي Context "تحت" الـ Provider
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: ColorManager.noirDeVigne,
+            appBar: DashboardAppBar(
+              onDatePicked: (range) {
+                setState(() => selectedRange = range);
+                // دلوقت الـ context ده شايف الـ Cubit بوضوح
+                context.read<DashboardCubit>().getRealTimeStats(
+                  widget.placeId,
+                  range.start,
+                  range.end,
+                );
               },
             ),
-          ],
-        ),
+            body: Stack(
+              children: [
+                BackGround(h: size.height, w: size.width),
+                BlocBuilder<DashboardCubit, DashboardState>(
+                  builder: (context, state) {
+                    if (state is DashboardLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: ColorManager.wasabi,
+                        ),
+                      );
+                    }
+
+                    if (state is DashboardLoaded) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            DateDisplayBanner(range: selectedRange!),
+                            const SizedBox(height: 20),
+                            MainRevenueCard(
+                              totalRevenue:
+                                  state.stats.totalAppRevenue +
+                                  state.stats.totalManualRevenue,
+                            ),
+                            const SizedBox(height: 16),
+                            StatsGrid(stats: state.stats),
+                            const SizedBox(height: 16),
+                            UsagePerformanceCard(
+                              totalHours:
+                                  state.stats.appHours +
+                                  state
+                                      .stats
+                                      .manualHours, // أو إجمالي الساعات حسب الموديل بتاعك
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (state is DashboardError) {
+                      return Center(
+                        child: Text(
+                          state.message,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
+
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

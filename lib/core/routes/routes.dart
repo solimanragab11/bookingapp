@@ -11,11 +11,12 @@ class Routes {
   static const String ownerDashboard = '/ownerDashboard';
   static const String placeBookings = '/placeBookings';
   static const String map = '/map';
+  static const String globalDashboard = '/globalDashboard';
 
   /// Alias for map selection (same route as [map]).
   static const String mapSelection = '/map';
   static const String placeBookingsDetails = '/placebookingsdetails';
   static const String myBookings = '/myBookings';
   static const String activateOfferRoute = '/activateOffer';
-  static const String adminSelectPlaceRoute = '/adminSelectPlace';
+  static const String adminDashboardScreen = '/adminDashboardScreen';
 }

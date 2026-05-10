@@ -5,7 +5,7 @@ class BookingModel {
   final String userId;
   final String subPlaceId; // ID of the specific SubPlace being booked
   final String bookedBy; // ID of the specific SubPlace being booked
-  final DateTime bookingDate; // Date of the booking
+  final DateTime createdAt; // Date of the booking
   final Map<String, List<String>> timeSlots; // {"saturday": ["10:00", "11:00"]}
   final double totalPrice;
   final double paidAmount; // Amount paid (deposit or full amount)
@@ -22,7 +22,7 @@ class BookingModel {
     required this.id,
     required this.userId,
     required this.subPlaceId,
-    required this.bookingDate,
+    required this.createdAt,
     required this.timeSlots,
     required this.totalPrice,
     required this.paidAmount,
@@ -41,7 +41,7 @@ class BookingModel {
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
       subPlaceId: json['subPlaceId'] ?? '',
-      bookingDate: DateTime.parse(json['bookingDate']),
+      createdAt: DateTime.parse(json['createdAt']),
       timeSlots: Map<String, List<String>>.from(
         json['timeSlots']?.map((k, v) => MapEntry(k, List<String>.from(v))) ??
             {},
@@ -64,7 +64,7 @@ class BookingModel {
       "id": id,
       "userId": userId,
       "subPlaceId": subPlaceId,
-      "bookingDate": bookingDate.toIso8601String(),
+      "createdAt": createdAt.toIso8601String(),
       "timeSlots": timeSlots,
       "totalPrice": totalPrice,
       "paidAmount": paidAmount,

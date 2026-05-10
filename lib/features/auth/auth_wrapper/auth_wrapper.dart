@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_Wrapper_states.dart';
+import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_wrapper_states.dart';
 import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_cubit.dart';
 
 class AuthWrapper extends StatefulWidget {
@@ -40,7 +40,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             state.role == 'owner'
                 ? Routes.ownerMainScreen
                 : state.role == 'admin'
-                ? Routes.addPlace
+                ? Routes.adminDashboardScreen
                 : Routes.home,
           );
         } else if (state is AuthUnauthenticated) {

@@ -219,7 +219,7 @@ class BookingCubit extends Cubit<BookingState> {
         id: orderId,
         userId: userId,
         subPlaceId: _subPlace!.id,
-        bookingDate: DateTime.now(),
+        createdAt: DateTime.now(),
         timeSlots: slotsToBook,
         totalPrice: currentState.originalTotalAmount,
         paidAmount: amountToPay,
@@ -247,7 +247,6 @@ class BookingCubit extends Cubit<BookingState> {
 
       emit(BookingSuccess(message: 'bookingSuccessMessage'));
     } catch (e) {
-      print(e);
       emit(BookingFailure(errorMessage: 'error_occurred'));
     }
   }

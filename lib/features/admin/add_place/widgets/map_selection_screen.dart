@@ -203,8 +203,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         padding: EdgeInsets.only(bottom: _pickedLocation != null ? 70 : 0),
         child: FloatingActionButton(
           backgroundColor: ColorManager.noirDeVigne,
-          child: const Icon(Icons.my_location, color: ColorManager.wasabi),
           onPressed: _locateMe,
+          child: const Icon(Icons.my_location, color: ColorManager.wasabi),
         ),
       ),
     );

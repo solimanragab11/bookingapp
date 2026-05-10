@@ -8,10 +8,10 @@ class MyImagePicker extends StatefulWidget {
   const MyImagePicker({super.key, required this.onImageSelected});
 
   @override
-  _MyImagePickerState createState() => _MyImagePickerState();
+  MyImagePickerState createState() => MyImagePickerState();
 }
 
-class _MyImagePickerState extends State<MyImagePicker> {
+class MyImagePickerState extends State<MyImagePicker> {
   File? _localImage;
   final ImagePicker _picker = ImagePicker();
 

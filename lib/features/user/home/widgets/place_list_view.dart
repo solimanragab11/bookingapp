@@ -7,7 +7,10 @@ import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.
 import 'package:remaking_booking_app_trail2/features/user/home/widgets/place_card_skeleton.dart';
 
 class PlaceListView extends StatelessWidget {
-  PlaceListView({super.key, this.category}); // صلحنا الاسم هنا لـ category
+  const PlaceListView({
+    super.key,
+    this.category,
+  }); // صلحنا الاسم هنا لـ category
   final String?
   category; // خليناه String عشان يطابق الـ id اللي جاي من الـ Home
 
