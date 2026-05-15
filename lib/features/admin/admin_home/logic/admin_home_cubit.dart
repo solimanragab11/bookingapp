@@ -1,14 +1,14 @@
 // lib/features/user/home/cubit/home_cubit.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/repos/home_repo.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_stats.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/repo/admin_home_repo.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 
-class HomeCubit extends Cubit<HomeStats> {
-  final HomeRepo _homeRepo;
+class AdminHomeCubit extends Cubit<AdminHomeStats> {
+  final AdminHomeRepo _homeRepo;
   List<PlaceModel> _allPlaces = [];
 
-  HomeCubit(this._homeRepo) : super(HomeLoading()) {
+  AdminHomeCubit(this._homeRepo) : super(HomeLoading()) {
     fetchPlaces();
   }
 

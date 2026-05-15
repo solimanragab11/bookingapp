@@ -30,7 +30,9 @@ class AdminActionsGrid extends StatelessWidget {
         _ActionCard(
           title: context.tr("Delete Place"),
           icon: Icons.delete_forever,
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(context, Routes.adminHome);
+          },
           isLogout: false,
         ),
         _ActionCard(

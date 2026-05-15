@@ -5,12 +5,12 @@ import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
 import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/logic/admin_dashboard_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/logic/admin_dashboard_state.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/repo/admin_dashboard_repo.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/widgets/admin_actions_grid.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/widgets/admin_header.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/widgets/admin_stats_grid.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/logic/admin_dashboard_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/logic/admin_dashboard_state.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/repo/admin_dashboard_repo.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/widgets/admin_actions_grid.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/widgets/admin_header.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/widgets/admin_stats_grid.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});

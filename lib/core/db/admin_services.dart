@@ -85,4 +85,16 @@ class AdminService {
   Future<void> updateUserRoleInFirebase(String userId, String role) async {
     await _firestore.collection('users').doc(userId).update({'role': role});
   }
+
+  // في ملف AdminService
+  Future<void> updatePlace(PlaceModel place) async {
+    try {
+      await _firestore
+          .collection('places')
+          .doc(place.id)
+          .update(place.toJson());
+    } catch (e) {
+      throw Exception("Failed to update place: $e");
+    }
+  }
 }

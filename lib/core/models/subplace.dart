@@ -3,9 +3,9 @@ import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
 
 class SubPlace {
   final String id;
-  final String imageUrl;
-  final double pricePerHour;
-  final int playersNumber;
+  String imageUrl;
+  double pricePerHour;
+  int playersNumber;
 
   Map<String, List<String>> freeTimeSlots;
   List<BookingIdModel> bookedTimeSlots;

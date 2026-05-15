@@ -1,6 +1,6 @@
 import 'dart:async'; // ضروري عشان الـ StreamSubscription
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/repo/admin_dashboard_repo.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/repo/admin_dashboard_repo.dart';
 import 'admin_dashboard_state.dart';
 
 class AdminDashboardCubit extends Cubit<AdminDashboardState> {

@@ -4,7 +4,9 @@ import 'package:remaking_booking_app_trail2/core/di/dependency_injection.dart';
 import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dasshboard/screen/admin_dashboard_screen.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/screen/admin_dashboard_screen.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/screens/admin_home_screen.dart';
 
 // Logic & Cubits
 import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
@@ -85,11 +87,22 @@ class AppRouter {
         );
 
       // ================= ADMIN / ADD PLACE ROUTES =================
+
+      case Routes.adminHome:
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) => getIt<AdminHomeCubit>(),
+            child: const AdminHomeScreen(),
+          ),
+        );
+
       case Routes.addPlace:
+        final place = settings.arguments as PlaceModel?;
+
         return MaterialPageRoute(
           builder: (_) => BlocProvider.value(
             value: getIt<AddPlaceCubit>(),
-            child: const AddPlaceScreen(),
+            child: AddPlaceScreen(placeToEdit: place), // بنمرره هنا
           ),
         );
 

@@ -3,8 +3,11 @@ import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
 // Core & Services
 import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
+import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/repo/add_place_repo.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/repo/admin_home_repo.dart';
 import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/auth/repo/firebase_auth_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/auth/signup/cubit/signup_cubit.dart.dart';
@@ -15,6 +18,8 @@ import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/rep
 import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/owner/dashboard/logic/dashboard_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/user/home/repos/home_repo.dart';
 // Features: Auth (مهم جداً لحل مشكلة الصورة)
 
 final getIt = GetIt.instance;
@@ -30,6 +35,9 @@ Future<void> setupGetIt() async {
     getIt.registerLazySingleton<BookingAnalyticsService>(
       () => BookingAnalyticsService(),
     );
+  }
+  if (!getIt.isRegistered<BookingService>()) {
+    getIt.registerLazySingleton<BookingService>(() => BookingService());
   }
 
   if (!getIt.isRegistered<FirestoreOwnerService>()) {
@@ -51,6 +59,16 @@ Future<void> setupGetIt() async {
     );
   }
 
+  if (!getIt.isRegistered<HomeRepoImpl>()) {
+    getIt.registerLazySingleton<HomeRepoImpl>(
+      () => HomeRepoImpl(getIt<BookingService>()),
+    );
+  }
+  if (!getIt.isRegistered<AdminHomeRepoImpl>()) {
+    getIt.registerLazySingleton<AdminHomeRepoImpl>(
+      () => AdminHomeRepoImpl(getIt<BookingService>()),
+    );
+  }
   if (!getIt.isRegistered<OwnerRepoImpl>()) {
     getIt.registerLazySingleton<OwnerRepoImpl>(
       () => OwnerRepoImpl(getIt<FirestoreOwnerService>()),
@@ -81,6 +99,14 @@ Future<void> setupGetIt() async {
   if (!getIt.isRegistered<SignUpCubit>()) {
     getIt.registerFactory<SignUpCubit>(
       () => SignUpCubit(getIt<FirebaseAuthRepoImpl>()),
+    );
+  }
+  if (!getIt.isRegistered<HomeCubit>()) {
+    getIt.registerFactory<HomeCubit>(() => HomeCubit(getIt<HomeRepoImpl>()));
+  }
+  if (!getIt.isRegistered<AdminHomeCubit>()) {
+    getIt.registerFactory<AdminHomeCubit>(
+      () => AdminHomeCubit(getIt<AdminHomeRepo>()),
     );
   }
   if (!getIt.isRegistered<AddPlaceCubit>()) {

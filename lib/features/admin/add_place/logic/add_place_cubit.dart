@@ -111,6 +111,20 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
     }
   }
 
+  // ─── update place ───────────────────────────────────────────────────────────────────
+
+  // جوه ملف AddPlaceCubit
+  Future<void> updateExistingPlace(PlaceModel place) async {
+    emit(state.copyWith(isLoading: true)); // تأكد إن عندك حالة تحميل
+
+    try {
+      await _adminRepository.processPlaceUpdate(place);
+      emit(state.copyWith(isSuccess: true));
+    } catch (e) {
+      emit(state.copyWith(isSuccess: false, errorMessage: () => e.toString()));
+    }
+  }
+
   // ─── Reset ───────────────────────────────────────────────────────────────────
 
   void reset() => emit(AddPlaceState.initial());

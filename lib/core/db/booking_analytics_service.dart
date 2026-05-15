@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart'; //
+import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
+import 'package:remaking_booking_app_trail2/core/models/place.dart'; //
 
 class BookingAnalyticsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -47,7 +48,7 @@ class BookingAnalyticsService {
   // --- 3. Calculation Engines (تجريد العمليات الحسابية) ---
 
   double calculateTotalRevenue(List<BookingModel> bookings) {
-    return bookings.fold(0.0, (summ, b) => summ + b.paidAmount);
+    return bookings.fold(0.0, (summ, b) => summ + b.priceAfterOffer);
   }
 
   double calculateAverageValue(double totalRevenue, int count) {
@@ -85,13 +86,21 @@ class BookingAnalyticsService {
     }
 
     // 3. تحويل الخريطة (Map) إلى لستة من PlaceReport
-    List<PlaceReport> placesBreakdown = bookingsByPlace.entries.map((entry) {
-      return PlaceReport(
-        placeId: entry.key,
-        bookingCount: entry.value.length,
-        revenue: calculateTotalRevenue(entry.value),
-      );
-    }).toList();
+    // 3. تحويل الخريطة (Map) إلى لستة من PlaceReport
+    // بنستخدم Future.wait عشان نجمع كل الـ Futures اللي طالعة من الـ map
+    List<PlaceReport> placesBreakdown = await Future.wait(
+      bookingsByPlace.entries.map((entry) async {
+        final PlaceModel? place = await getPlaceById(entry.key);
+
+        return PlaceReport(
+          placeName:
+              place?.name ?? "Unknown Place", // حماية في حالة لو المكان ممسوح
+          placeId: entry.key,
+          bookingCount: entry.value.length,
+          revenue: calculateTotalRevenue(entry.value),
+        );
+      }).toList(), // لازم نحولها لـ List عشان Future.wait يقبلها
+    );
 
     return BookingMonthlyReport(
       month: month,
@@ -102,7 +111,7 @@ class BookingAnalyticsService {
         appBookings.length,
         allBookings.length,
       ),
-      placesBreakdown: placesBreakdown, // اللستة جاهزة للمقارنة
+      placesBreakdown: placesBreakdown, // دلوقتى اللستة جاهزة ونوعها سليم 100%
     );
   }
 
@@ -111,15 +120,29 @@ class BookingAnalyticsService {
   Future<void> deleteBooking(String bookingId) async {
     await _firestore.collection('bookings').doc(bookingId).delete();
   }
+
+  Future<PlaceModel?> getPlaceById(String placeId) async {
+    try {
+      final doc = await _firestore.collection('places').doc(placeId).get();
+      return doc.exists
+          ? PlaceModel.fromJson(doc.data() as Map<String, dynamic>)
+          : null;
+    } catch (e) {
+      debugPrint("خطأ أثناء جلب بيانات المكان $placeId: $e");
+      return null;
+    }
+  }
 }
 
 /// تقرير فرعي لكل ملعب على حدة
 class PlaceReport {
   final String placeId;
+  final String placeName;
   final int bookingCount;
   final double revenue;
 
   PlaceReport({
+    required this.placeName,
     required this.placeId,
     required this.bookingCount,
     required this.revenue,

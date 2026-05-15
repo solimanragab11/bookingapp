@@ -56,4 +56,41 @@ class AddPlaceRepo {
 
     await _adminService.savePlace(finalPlace);
   }
+
+  Future<void> processPlaceUpdate(PlaceModel place) async {
+    // 1. معالجة الصور الرئيسية
+    List<String> finalImages = [];
+    for (var path in place.images) {
+      if (path.startsWith('http')) {
+        finalImages.add(path); // صورة قديمة
+      } else {
+        String url = await _adminService.uploadFile(
+          File(path),
+          "places_images",
+        );
+        finalImages.add(url); // صورة جديدة اترفت
+      }
+    }
+
+    // 2. معالجة صور الـ SubPlaces
+    List<SubPlace> finalSubPlaces = [];
+    for (var sub in place.subPlaces) {
+      String subUrl = sub.imageUrl;
+      if (subUrl.isNotEmpty && !subUrl.startsWith('http')) {
+        subUrl = await _adminService.uploadFile(
+          File(subUrl),
+          "subplaces_images",
+        );
+      }
+      finalSubPlaces.add(sub.copyWith(imageUrl: subUrl));
+    }
+
+    // 3. تجميع المكان النهائي وتحديثه
+    final updatedPlace = place.copyWith(
+      images: finalImages,
+      subPlaces: finalSubPlaces,
+    );
+
+    await _adminService.updatePlace(updatedPlace);
+  }
 }

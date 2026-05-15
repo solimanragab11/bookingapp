@@ -6,19 +6,19 @@ import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/home_drawer.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/home_header.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/home_serachbar.dart';
+import 'package:remaking_booking_app_trail2/features/admin/admin_home/widgets/admin_place_list_view.dart';
 import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/user/home/repos/home_repo.dart';
 import 'package:remaking_booking_app_trail2/features/user/home/widgets/home_tabs_section.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/widgets/place_list_view.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class AdminHomeScreen extends StatefulWidget {
+  const AdminHomeScreen({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<AdminHomeScreen> createState() => _AdminHomeScreenState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // 1. التعريف لازم يكون بره الـ build عشان يحافظ على قيمته
   String selectedCategory = 'all';
 
@@ -46,7 +46,9 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 15),
                     const HomeTabsSection(),
                     const SizedBox(height: 15),
-                    Expanded(child: PlaceListView(category: selectedCategory)),
+                    Expanded(
+                      child: AdminPlaceListView(category: selectedCategory),
+                    ),
                   ],
                 ),
               ),
