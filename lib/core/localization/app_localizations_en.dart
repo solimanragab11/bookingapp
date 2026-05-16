@@ -18,6 +18,7 @@ class AppLocalizationsEn {
     'termsOfService': 'Terms of Service',
     'janeDoe': 'Jane Doe',
     'elevenDigits': '01#########',
+    'lowestprice': 'Lowest Price',
 
     // Validation & Errors
     'userNotFound': 'No user found for that email.',

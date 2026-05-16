@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
 import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
 
@@ -18,7 +19,7 @@ class GlobalDashboardRepository {
         ownerId: ownerId!,
         month: month,
       );
-      print(report.placesBreakdown.length);
+      debugPrint(report.placesBreakdown.length.toString());
       return report;
     } catch (e) {
       // رمي Exception واضح يساعدنا في الـ Debugging لو حصلت مشكلة في الـ Firestore

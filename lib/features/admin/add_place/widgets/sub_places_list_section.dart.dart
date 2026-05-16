@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 
@@ -77,6 +78,7 @@ class SubPlacesListSection extends StatelessWidget {
                 child: _buildSmallField(
                   "Size (e.g. 5x5)",
                   (val) => subPlaces[index]['playersNumber'] = val,
+                  initialValue: subPlaces[index]['playersNumber']?.toString(),
                   isNumber: true,
                 ),
               ),
@@ -90,6 +92,7 @@ class SubPlacesListSection extends StatelessWidget {
                   "Price",
                   (val) => subPlaces[index]['price'] = val,
                   isNumber: true,
+                  initialValue: subPlaces[index]['price']?.toString(),
                 ),
               ),
               IconButton(
@@ -104,6 +107,9 @@ class SubPlacesListSection extends StatelessWidget {
   }
 
   Widget _buildImagePicker(int index) {
+    final imageSource =
+        subPlaces[index]['image']; // سحبنا الداتا من غير كاستينج سريع
+
     return GestureDetector(
       onTap: () => onPickImage(index),
       child: Container(
@@ -114,7 +120,7 @@ class SubPlacesListSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: ColorManager.wasabi),
         ),
-        child: subPlaces[index]['image'] == null
+        child: imageSource == null
             ? const Icon(
                 Icons.add_a_photo,
                 size: 20,
@@ -122,21 +128,63 @@ class SubPlacesListSection extends StatelessWidget {
               )
             : ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  subPlaces[index]['image'] as File,
-                  fit: BoxFit.cover,
-                ),
+                child: _buildImageWidget(
+                  imageSource,
+                ), // فنكشن ذكية هتعرض الصورة حسب نوعها
               ),
       ),
     );
+  }
+
+  Widget _buildImageWidget(dynamic source) {
+    if (source is File) {
+      return Image.file(source, fit: BoxFit.cover);
+    } else if (source is String) {
+      if (source.startsWith('http') || source.startsWith('https')) {
+        return CachedNetworkImage(
+          imageUrl: source,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: ColorManager.noirDeVigne,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    ColorManager.wasabi,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: ColorManager.noirDeVigne,
+            child: const Icon(
+              Icons.broken_image,
+              color: Colors.redAccent,
+              size: 20,
+            ),
+          ),
+        );
+      } else {
+        // لو مسار محلي متخزن كـ String
+        return Image.file(File(source), fit: BoxFit.cover);
+      }
+    }
+    // السطر ده كان محطوط غلط برا الـ return برة الميثود، كدة اتظبط
+    return const Icon(Icons.broken_image, color: Colors.redAccent);
   }
 
   Widget _buildSmallField(
     String hint,
     Function(String) onChanged, {
     bool isNumber = false,
+    String? initialValue,
   }) {
     return TextFormField(
+      initialValue: initialValue,
       style: const TextStyle(color: ColorManager.creasedKhaki, fontSize: 14),
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       onChanged: onChanged,

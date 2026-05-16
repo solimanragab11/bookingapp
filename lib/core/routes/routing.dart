@@ -7,6 +7,8 @@ import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_p
 import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/screen/admin_dashboard_screen.dart';
 import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/admin/admin_home/screens/admin_home_screen.dart';
+import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/manage_auth_cubit.dart';
+import 'package:remaking_booking_app_trail2/features/admin/mange_auth/screen/manage_auth_screen.dart';
 
 // Logic & Cubits
 import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
@@ -121,6 +123,13 @@ class AppRouter {
           builder: (_) => ActivateOfferScreen(
             placeId: args['placeId'],
             subPlaceId: args['subPlaceId'],
+          ),
+        );
+      case Routes.adminMangeAuth:
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: getIt<ManageAuthCubit>(),
+            child: ManageAuthScreen(), // بنمرره هنا
           ),
         );
 

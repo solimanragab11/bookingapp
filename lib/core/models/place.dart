@@ -9,7 +9,7 @@ class PlaceModel {
   final double latitude;
   final double longitude;
   final double rating;
-  final List<String> images;
+  final List<dynamic> images;
   final String locationUrl;
   final String openingTime;
   final String closingTime;
@@ -105,7 +105,7 @@ class PlaceModel {
     double? latitude,
     double? longitude,
     double? rating,
-    List<String>? images,
+    List<dynamic>? images,
     String? locationUrl,
     String? openingTime,
     String? closingTime,

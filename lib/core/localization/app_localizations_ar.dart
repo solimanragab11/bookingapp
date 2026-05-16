@@ -1,7 +1,7 @@
 class AppLocalizationsAr {
   static const Map<String, String> map = {
     // Auth & User Profile
-    'appName': 'هظبطهالك',
+    'appName': 'هنظبطهالك',
     'login': 'تسجيل دخول',
     'signup': 'إنشاء حساب',
     'welcomeBack': 'يا تلتوميت ألف أهلاً',
@@ -18,6 +18,7 @@ class AppLocalizationsAr {
     'termsOfService': 'الشروط والأحكام',
     'janeDoe': 'سليمان رجب',
     'elevenDigits': '01#################',
+    'lowestprice': 'الاقل سعر ',
 
     // Validation & Errors
     'userNotFound': 'النمرة غلط يا عماد! \n الرقم ده مش متسجل',

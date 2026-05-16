@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // المكتبة المطلوبة لفتح الخرائط
 import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
@@ -70,10 +71,27 @@ class PlaceCard extends StatelessWidget {
                   height: h * 0.22,
                   width: double.infinity,
                   child: place.images.isNotEmpty
-                      ? Image.network(
-                          place.images[0],
+                      ? CachedNetworkImage(
+                          imageUrl: place.images[0],
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          // ويدجت الـ Loading الناعم المنسق مع ألوانك وهو بيحمل الصورة لأول مرة
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[900],
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    ColorManager.wasabi,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // ويدجت الـ Error بتاعتك بالظبط لو الرابط باظ أو النت فصل
+                          errorWidget: (context, url, error) => Container(
                             color: Colors.grey[900],
                             child: const Icon(
                               Icons.broken_image,

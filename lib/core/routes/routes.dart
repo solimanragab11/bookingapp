@@ -20,4 +20,5 @@ class Routes {
   static const String myBookings = '/myBookings';
   static const String activateOfferRoute = '/activateOffer';
   static const String adminDashboardScreen = '/adminDashboardScreen';
+  static const String adminMangeAuth = '/adminMangeAuth';
 }

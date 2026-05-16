@@ -6,8 +6,8 @@ import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.
 import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
 
 class HomeTabsSection extends StatelessWidget {
-  const HomeTabsSection({super.key});
-
+  const HomeTabsSection({super.key, required this.currentTab});
+  final String currentTab;
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
@@ -16,7 +16,9 @@ class HomeTabsSection extends StatelessWidget {
     return BlocBuilder<HomeCubit, HomeStats>(
       buildWhen: (prev, curr) => curr is HomeLoaded,
       builder: (context, state) {
-        final currentTab = (state is HomeLoaded) ? state.selectedTab : "nearby";
+        String currentTab = (state is HomeLoaded)
+            ? state.selectedTab
+            : "nearby";
 
         return Row(
           children: [
@@ -37,6 +39,16 @@ class HomeTabsSection extends StatelessWidget {
                 tabName: context.tr('offers'),
                 isSelected: currentTab == "offers",
                 ontap: () => context.read<HomeCubit>().selectTab("offers"),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TabWidget(
+                width: w,
+                height: h,
+                tabName: context.tr('lowestprice'),
+                isSelected: currentTab == "lowestprice",
+                ontap: () => context.read<HomeCubit>().selectTab("lowestprice"),
               ),
             ),
           ],

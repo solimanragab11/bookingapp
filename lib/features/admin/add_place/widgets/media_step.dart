@@ -1,10 +1,11 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
 
 class MediaStep extends StatelessWidget {
-  final List<File> mainImages;
+  // غيرنا النوع لـ dynamic عشان يشيل الـ String (الـ URL القديم) والـ File (الصور الجديدة) سوا
+  final List<dynamic> mainImages;
   final Future<void> Function() onAddImages;
   final ValueChanged<int> onRemoveImage;
 
@@ -57,15 +58,14 @@ class MediaStep extends StatelessWidget {
   }
 
   Widget _buildImageItem(int index) {
+    final imageSource = mainImages[index];
+
     return Stack(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            mainImages[index],
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _buildImageWidget(imageSource),
           ),
         ),
         Positioned(
@@ -83,5 +83,47 @@ class MediaStep extends StatelessWidget {
       ],
     );
   }
-}
 
+  // ويدجت ذكية تفصل وتحدد طريقة العرض حسب نوع الداتا المتخزنة
+  Widget _buildImageWidget(dynamic source) {
+    if (source is File) {
+      // لو صورة جديدة الأدمن لسه مختارها من الجهاز
+      return Image.file(source, fit: BoxFit.cover);
+    } else if (source is String) {
+      // لو رابط قديم جاي من Firebase في حالة الـ Edit
+      if (source.startsWith('http') || source.startsWith('https')) {
+        return CachedNetworkImage(
+          imageUrl: source,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: Colors.white.withOpacity(0.05),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    ColorManager.wasabi,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: Colors.white.withOpacity(0.05),
+            child: const Icon(
+              Icons.broken_image,
+              color: Colors.redAccent,
+              size: 20,
+            ),
+          ),
+        );
+      } else {
+        // لو مسار محلي متسيف كـ String
+        return Image.file(File(source), fit: BoxFit.cover);
+      }
+    }
+    return const Icon(Icons.broken_image, color: Colors.redAccent);
+  }
+}

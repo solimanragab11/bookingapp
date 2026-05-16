@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -50,11 +51,29 @@ class PlaceDetailsScreen extends StatelessWidget {
                   width: w,
                   child: CarouselSlider(
                     items: livePlace.images.map((imageUrl) {
-                      return Image.network(
-                        imageUrl,
+                      return CachedNetworkImage(
+                        imageUrl: imageUrl,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
+                        // ويدجت الـ Loading اللطيفة عشان الـ UI ميفضلش فاضي وهي بتحمل لأول مرة
+                        placeholder: (context, url) => Container(
+                          width: double.infinity,
+                          color: Colors.grey[900],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  ColorManager.wasabi,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // الـ Error المظبوطة بتاعتك بالظبط لو حصل أي مشكلة في التحميل
+                        errorWidget: (context, url, error) =>
                             const Icon(Icons.broken_image, color: Colors.white),
                       );
                     }).toList(),

@@ -12,10 +12,10 @@ import 'package:remaking_booking_app_trail2/core/widgets/show_success_dialog.dar
 import 'package:remaking_booking_app_trail2/core/widgets/snackbar_utils.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_state.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_searchbar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/app_bar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_stepper_controls.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/basic_info_step.dart';
+import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/search_bar/add_place_searchbar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/sub_places_step.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/media_step.dart';
 import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/loading_overlay.dart';
@@ -39,7 +39,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   final _step1FormKey = GlobalKey<FormState>();
 
   String _openingTime = '09:00 AM';
-  String _closingTime = '11:00 PM';
+  String _closingTime = '12:00 PM';
   bool _isOpen24_7 = false;
 
   // ─── Step 2 ───────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   String? _selectedAddress;
 
   // ─── Step 3 ───────────────────────────────────────────────────────────────
-  final List<File> _mainImages = [];
+  final List<dynamic> _mainImages = [];
 
   @override
   void dispose() {
@@ -76,6 +76,10 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
         widget.placeToEdit?.minimumCharge?.toString() ?? "";
     _selectedAddress = widget.placeToEdit?.locationUrl;
     if (widget.placeToEdit != null) {
+      context.read<AddPlaceCubit>().loadOwnerForEdit(
+        widget.placeToEdit!.ownerId,
+      );
+      _mainImages.addAll(widget.placeToEdit!.images);
       _selectedLocation = LatLng(
         widget.placeToEdit!.latitude,
         widget.placeToEdit!.longitude,
@@ -124,12 +128,29 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   }
 
   void _handleCubitListener(BuildContext context, AddPlaceState state) {
-    print("we are in $state");
     if (state.isSuccess) {
-      showSuccessDialog(context);
-      Navigator.pop(context);
-    } else if (state.errorMessage != null) {
-      SnackBarUtils.showErrorSnackBar(context, state.errorMessage!);
+      // 1. اعرض رسالة نجاح أو اقفل الشاشة
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Success! Place saved successfully.')),
+      );
+
+      // 2. 🔥 صفر الفلاجز عشان الستيت متبقاش معلقة على true علطول
+      context.read<AddPlaceCubit>().resetStatusFlags();
+
+      Navigator.pop(context); // أو الانتقال للـ Dashboard
+    }
+
+    if (state.errorMessage != null) {
+      // 1. دلوقتي الـ Error هيفضل ثابت وهتلقطه هنا وتشوف المشكلة الحقيقية فين!
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      // 2. 🔥 صَفره بعد ما عرضته للمنتصف
+      context.read<AddPlaceCubit>().resetStatusFlags();
     }
   }
 
@@ -237,6 +258,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
 
       // تجميع الـ Object النهائي
       // لو إحنا في EditMode بنستخدم copyWith على الـ placeToEdit عشان نحافظ على الـ ID والحقول الثابتة
+      // تجميع الـ Object النهائي
       final finalPlaceData =
           (isEditMode ? widget.placeToEdit! : cubit.state.place).copyWith(
             name: _nameController.text.trim(),
@@ -254,15 +276,21 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
             locationUrl:
                 _selectedAddress ??
                 (isEditMode ? widget.placeToEdit!.locationUrl : ''),
-            // دمج الصور الجديدة مع القديمة (الـ Cubit هيتعامل مع الرفع)
-            images: _mainImages.map((f) => f.path).toList(),
+
+            // 🔥 التعديل السحري هنا:
+            // بنشوف كل عنصر في الـ _mainImages، لو File بناخد مساره، ولو String (رابط قديم) بينزل زي ما هو
+            images: _mainImages.map((img) {
+              if (img is File) {
+                return img.path;
+              }
+              return img.toString(); // هيرجع الـ URL القديم زي ما هو
+            }).toList(),
+
             subPlaces: subPlacesModels,
             minimumCharge: _minChargeController.text.trim().isNotEmpty
                 ? double.tryParse(_minChargeController.text.trim())
                 : null,
-          );
-
-      // تنفيذ العملية بناءً على الحالة
+          ); // تنفيذ العملية بناءً على الحالة
       if (isEditMode) {
         // ميثود في الكيوبيت مخصصة للتحديث
         await cubit.updateExistingPlace(finalPlaceData);
@@ -409,7 +437,9 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
           onAddImages: () async {
             final images = await context.read<AddPlaceCubit>().pickMainImages();
             if (images.isNotEmpty && mounted) {
-              setState(() => _mainImages.addAll(images));
+              setState(
+                () => _mainImages.addAll(images),
+              ); // هتضيف الـ Files عادي جداً
             }
           },
           onRemoveImage: (index) => setState(() => _mainImages.removeAt(index)),

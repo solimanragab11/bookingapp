@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:rxdart/rxdart.dart'; // يفضل تضيف rxdart في الـ pubspec.yaml
+import 'package:rxdart/rxdart.dart';
 import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
 
 class AdminDashBoardRepo {
@@ -7,28 +7,45 @@ class AdminDashBoardRepo {
 
   AdminDashBoardRepo(this._adminServices);
 
-  // تحويل الميثود لـ Stream بدل Future لتعمل بشكل Live
+  // 🔥 تحسين: جلب الأرقام في نفس اللحظة (Parallel) لتسريع الأداء بدلاً من الانتظار المتسلسل
+  Future<Map<String, int>> getStaticStats() async {
+    final results = await Future.wait([
+      _adminServices.getPlacesCount(),
+      _adminServices.getUsersCount(),
+      _adminServices.getActiveOffersCount(),
+    ]);
+
+    return {
+      'placesCount': results[0],
+      'usersCount': results[1],
+      'offersCount': results[2],
+    };
+  }
+
+  // بتجيب الـ Income لوحده لايف
+  Stream<double> getLiveIncomeStream() {
+    return _adminServices.getTotalIncomeStream();
+  }
+
+  // تجميع الـ Futures (مرة واحدة) مع الـ Stream (لايف) في ستريم واحد مجمع للـ UI
   Stream<Map<String, dynamic>> getDashboardStatsStream() {
-    try {
-      // بنجمع كل الـ Streams من السيرفيس في Stream واحد مجمع
-      return Rx.combineLatest4(
-        _adminServices.getPlacesCountStream(),
-        _adminServices.getUsersCountStream(),
-        _adminServices.getActiveOffersCountStream(),
-        _adminServices.getTotalIncomeStream(),
-        (int places, int users, int offers, double income) {
-          return {
-            'placesCount': places,
-            'usersCount': users,
-            'offersCount': offers,
-            'income': income,
-          };
-        },
-      );
-    } catch (e) {
-      // في حالة الـ Streams، الـ Error بيمر عبر الـ Stream نفسه
-      return Stream.error("Repo Error: Failed to fetch live stats -> $e");
-    }
+    return Rx.combineLatest4(
+      Stream.fromFuture(_adminServices.getPlacesCount()),
+      Stream.fromFuture(_adminServices.getUsersCount()),
+      Stream.fromFuture(_adminServices.getActiveOffersCount()),
+      _adminServices.getTotalIncomeStream(),
+      (int places, int users, int offers, double income) {
+        return {
+          'placesCount': places,
+          'usersCount': users,
+          'offersCount': offers,
+          'income': income,
+        };
+      },
+    ).handleError((error) {
+      // ✅ الطريقة الصحيحة لالتقاط الأخطاء داخل الـ Streams
+      throw Exception("Repo Error: Failed to fetch live stats -> $error");
+    });
   }
 
   // --- العمليات التي تظل Future لأنها أكشن لحظي (Delete / Update) ---

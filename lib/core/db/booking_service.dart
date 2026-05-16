@@ -175,6 +175,41 @@ class BookingService {
     }
   }
 
+  Future<List<PlaceModel>> getPlacesByName(String placeName) async {
+    try {
+      // 1. بنجيب كل الوثائق المتطابقة مع البحث
+      final querySnapshot = await _firestore
+          .collection('places')
+          .where('name', isGreaterThanOrEqualTo: placeName)
+          .where('name', isLessThanOrEqualTo: '$placeName\uf8ff')
+          .get();
+      // 2. بنحول كل وثيقة جوه اللستة لـ PlaceModel ونرجعهم كلهم في List
+      return querySnapshot.docs.map((doc) {
+        return PlaceModel.fromJson(doc.data());
+      }).toList();
+    } catch (e) {
+      debugPrint("خطأ أثناء جلب قائمة الملاعب باسم $placeName: $e");
+      return []; // لو حصل خطأ بنرجع لستة فاضية عشان الـ UI ما يضربش كراش
+    }
+  }
+
+  Future<List<PlaceModel>> getPlacesByCat(String cat) async {
+    try {
+      // 1. بنجيب كل الوثائق المتطابقة مع البحث
+      final querySnapshot = await _firestore
+          .collection('places')
+          .where('type', isEqualTo: cat)
+          .get();
+      // 2. بنحول كل وثيقة جوه اللستة لـ PlaceModel ونرجعهم كلهم في List
+      return querySnapshot.docs.map((doc) {
+        return PlaceModel.fromJson(doc.data());
+      }).toList();
+    } catch (e) {
+      debugPrint("خطأ أثناء جلب قائمة الملاعب باسم $cat: $e");
+      return []; // لو حصل خطأ بنرجع لستة فاضية عشان الـ UI ما يضربش كراش
+    }
+  }
+
   Future<void> addPointsToUserWithId({
     required String userId,
     required int pointsToAdd,

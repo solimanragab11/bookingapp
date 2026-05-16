@@ -28,8 +28,8 @@ class AdminActionsGrid extends StatelessWidget {
           isLogout: false,
         ),
         _ActionCard(
-          title: context.tr("Delete Place"),
-          icon: Icons.delete_forever,
+          title: context.tr("Mange Places"),
+          icon: Icons.precision_manufacturing_rounded,
           onTap: () {
             Navigator.pushNamed(context, Routes.adminHome);
           },
@@ -38,7 +38,9 @@ class AdminActionsGrid extends StatelessWidget {
         _ActionCard(
           title: context.tr("Manage Auth"),
           icon: Icons.admin_panel_settings,
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(context, Routes.adminMangeAuth);
+          },
           isLogout: false,
         ),
         _ActionCard(
@@ -65,7 +67,7 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback onTap;
-  final isLogout;
+  final bool isLogout;
   const _ActionCard({
     required this.title,
     required this.icon,

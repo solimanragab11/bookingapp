@@ -8,6 +8,7 @@ import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_p
 import 'package:remaking_booking_app_trail2/features/admin/add_place/repo/add_place_repo.dart';
 import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/admin/admin_home/repo/admin_home_repo.dart';
+import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/manage_auth_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
 import 'package:remaking_booking_app_trail2/features/auth/repo/firebase_auth_repo_impl.dart';
 import 'package:remaking_booking_app_trail2/features/auth/signup/cubit/signup_cubit.dart.dart';
@@ -86,7 +87,7 @@ Future<void> setupGetIt() async {
 
   if (!getIt.isRegistered<AddPlaceRepo>()) {
     getIt.registerLazySingleton<AddPlaceRepo>(
-      () => AddPlaceRepo(getIt<AdminService>()),
+      () => AddPlaceRepo(getIt<AdminService>(), getIt<AuthService>()),
     );
   }
   // ================= 3. Cubits (Logic) =================
@@ -107,6 +108,11 @@ Future<void> setupGetIt() async {
   if (!getIt.isRegistered<AdminHomeCubit>()) {
     getIt.registerFactory<AdminHomeCubit>(
       () => AdminHomeCubit(getIt<AdminHomeRepo>()),
+    );
+  }
+  if (!getIt.isRegistered<ManageAuthCubit>()) {
+    getIt.registerFactory<ManageAuthCubit>(
+      () => ManageAuthCubit(getIt<AdminService>()),
     );
   }
   if (!getIt.isRegistered<AddPlaceCubit>()) {

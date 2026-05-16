@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
+import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/home_drawer.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/home_header.dart';
 import 'package:remaking_booking_app_trail2/core/widgets/home_serachbar.dart';
 import 'package:remaking_booking_app_trail2/features/admin/admin_home/widgets/admin_place_list_view.dart';
 import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
@@ -21,6 +21,7 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // 1. التعريف لازم يكون بره الـ build عشان يحافظ على قيمته
   String selectedCategory = 'all';
+  String selectedTab = 'nearby';
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return BlocProvider<HomeCubit>(
       create: (context) => HomeCubit(HomeRepoImpl(BookingService())),
       child: Scaffold(
-        drawer: const HomeDrawer(),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          centerTitle: true,
+          title: Text(
+            context.tr('appName'),
+            style: TextStyleMangare.headingStyle.copyWith(
+              fontSize: w * 0.065,
+              color: ColorManager.wasabi,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
         body: SafeArea(
           child: Stack(
             children: [
@@ -39,12 +52,24 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 padding: EdgeInsets.symmetric(horizontal: w * 0.04),
                 child: Column(
                   children: [
-                    const HomeHeader(),
-                    const HomeSearchBar(),
+                    Builder(
+                      builder: (blocContext) {
+                        return HomeSearchBar(
+                          onChanged: (value) {
+                            // بننادي دالة السيرش باستخدام الـ Context المضمون وبدون setState عشوائي
+                            blocContext.read<HomeCubit>().searchPlaces(
+                              query: value,
+                              category: selectedCategory,
+                              selectedTab: selectedTab,
+                            );
+                          },
+                        );
+                      },
+                    ),
                     const SizedBox(height: 20),
                     _buildCategoryList(),
                     const SizedBox(height: 15),
-                    const HomeTabsSection(),
+                    HomeTabsSection(currentTab: selectedTab),
                     const SizedBox(height: 15),
                     Expanded(
                       child: AdminPlaceListView(category: selectedCategory),

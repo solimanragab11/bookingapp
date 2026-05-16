@@ -19,8 +19,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 1. التعريف لازم يكون بره الـ build عشان يحافظ على قيمته
+  // الكاتيجوري محتفظين بقيمتها هنا بره الـ build
   String selectedCategory = 'all';
+  String selectedTab = 'nearby';
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,7 @@ class _HomePageState extends State<HomePage> {
     final w = MediaQuery.of(context).size.width;
 
     return BlocProvider<HomeCubit>(
+      // 1. هنا بنكريت الـ Cubit الأساسي للشاشة والـ Widgets اللي جواها
       create: (context) => HomeCubit(HomeRepoImpl(BookingService())),
       child: Scaffold(
         drawer: const HomeDrawer(),
@@ -40,12 +42,34 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   children: [
                     const HomeHeader(),
-                    const HomeSearchBar(),
+                    const SizedBox(height: 10),
+
+                    // 🚀 2. استخدام الـ Builder هنا هو السر! بيوفر blocContext تحت الـ Provider مباشرة
+                    Builder(
+                      builder: (blocContext) {
+                        return HomeSearchBar(
+                          onChanged: (value) {
+                            // بننادي دالة السيرش باستخدام الـ Context المضمون وبدون setState عشوائي
+                            blocContext.read<HomeCubit>().searchPlaces(
+                              selectedTab: selectedTab,
+                              query: value,
+                              category: selectedCategory,
+                            );
+                          },
+                        );
+                      },
+                    ),
+
                     const SizedBox(height: 20),
+
+                    // 3. لستة الكاتيجوريز (لو ضغطت على وحدة، السيرش هيفلتر جواها برضه)
                     _buildCategoryList(),
+
                     const SizedBox(height: 15),
-                    const HomeTabsSection(),
+                    HomeTabsSection(currentTab: selectedTab),
                     const SizedBox(height: 15),
+
+                    // 4. لستة عرض الملاعب اللي جواها الـ BlocBuilder والـ print بتاعك
                     Expanded(child: PlaceListView(category: selectedCategory)),
                   ],
                 ),
@@ -72,24 +96,27 @@ class _HomePageState extends State<HomePage> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: categories.length,
-        itemBuilder: (context, index) {
+        // 🚀 استخدمنا Builder برضه جوه الـ ListView عشان الـ GestureDetector يعرف يوصل للـ Cubit صح
+        itemBuilder: (categoryContext, index) {
           final category = categories[index];
           final bool isSelected = selectedCategory == category['id'];
 
           return GestureDetector(
-            // استخدام GestureDetector أفضل من IconButton عشان المربع كله يبقى قابل للضغط
             onTap: () {
               setState(() {
                 selectedCategory = category['id'] as String;
               });
-              // 3. هنا بتنادي الـ Cubit بتاعك عشان يفلتر الداتا فعلياً
-              // context.read<HomeCubit>().getPlaces(category: selectedCategory);
+
+              // 👑 هنا بننادي الـ Cubit عشان يفلتر بالكاتيجوري الجديدة فوراً من السيرفر
+              // استخدمنا الـ categoryContext المضمون هنا برضه
+              categoryContext.read<HomeCubit>().getPlacesByCat(
+                selectedCategory,
+              );
             },
             child: Container(
               width: 80,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                // المربع بينور لو تم اختياره
                 color: isSelected
                     ? ColorManager.creasedKhaki.withOpacity(0.3)
                     : ColorManager.wasabi.withOpacity(0.2),

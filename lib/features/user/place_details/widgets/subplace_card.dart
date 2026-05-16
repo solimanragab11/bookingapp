@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
 import 'package:remaking_booking_app_trail2/core/models/place.dart';
@@ -47,13 +48,34 @@ class SubPlaceCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
-                child: Image.network(
-                  subPlace.imageUrl,
+                child: CachedNetworkImage(
+                  imageUrl: subPlace.imageUrl,
                   height: h * 0.18,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  // مؤشر تحميل ناعم بنفس مقاسات الصورة عشان الـ UI ميرعشش وهو بيحمل أول مرة
+                  placeholder: (context, url) => Container(
                     height: h * 0.18,
+                    width: double.infinity,
+                    color: ColorManager
+                        .noirDeVigne, // أو الـ background المتناسق عندك
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            ColorManager.wasabi,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // الـ Error Widget بتاعتك بالظبط بأيقونة كورة القدم ومقاسها 50
+                  errorWidget: (context, url, error) => Container(
+                    height: h * 0.18,
+                    width: double.infinity,
                     color: Colors.grey.shade300,
                     child: const Icon(
                       Icons.sports_soccer,

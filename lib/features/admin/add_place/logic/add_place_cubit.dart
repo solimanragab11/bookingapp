@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,28 +12,69 @@ import 'package:remaking_booking_app_trail2/features/admin/add_place/repo/add_pl
 class AddPlaceCubit extends Cubit<AddPlaceState> {
   final AddPlaceRepo _adminRepository;
   final ImagePicker _picker = ImagePicker();
+  Timer? _searchDebounce;
 
   AddPlaceCubit(this._adminRepository) : super(AddPlaceState.initial());
 
+  @override
+  Future<void> close() {
+    _searchDebounce?.cancel();
+    return super.close();
+  }
+
   // ─── Owner search ────────────────────────────────────────────────────────────
 
-  void searchOwner(String query) async {
+  Future<void> loadOwnerForEdit(String ownerId) async {
+    if (ownerId.isEmpty) return;
+
+    emit(
+      state.copyWith(
+        isLoading: true,
+        isSuccess: false,
+        errorMessage: () => null,
+      ),
+    );
+
+    try {
+      final UserModel? owner = await _adminRepository.getOwnerById(ownerId);
+
+      if (owner != null && !isClosed) {
+        emit(
+          state.copyWith(
+            selectedOwner: () => owner,
+            place: state.place.copyWith(ownerId: owner.id),
+            isLoading: false,
+            errorMessage: () => null,
+          ),
+        );
+      } else {
+        _emitError('Could not find the owner for this place.');
+      }
+    } catch (e) {
+      _emitError('Failed to load owner: ${e.toString()}');
+    }
+  }
+
+  void searchOwner(String query) {
     if (query.length < 3) {
-      emit(
-        state.copyWith(
-          searchResults: [],
-          errorMessage: () => null, // clear any previous error
-        ),
-      );
+      emit(state.copyWith(searchResults: [], errorMessage: () => null));
       return;
     }
 
-    try {
-      final results = await _adminRepository.searchOwners('+2$query');
-      emit(state.copyWith(searchResults: results, errorMessage: () => null));
-    } catch (e) {
-      _emitError('Search failed: ${e.toString()}');
-    }
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final results = await _adminRepository.searchOwners('+2$query');
+        if (!isClosed) {
+          emit(
+            state.copyWith(searchResults: results, errorMessage: () => null),
+          );
+        }
+      } catch (e) {
+        _emitError('Search failed: ${e.toString()}');
+      }
+    });
   }
 
   void selectOwner(UserModel owner) {
@@ -59,33 +101,62 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
 
   // ─── Place data ──────────────────────────────────────────────────────────────
 
-  /// Synchronously updates the place in state. No async, no side-effects.
   void updatePlace(PlaceModel newPlace) {
     emit(state.copyWith(place: newPlace, errorMessage: () => null));
   }
 
-  // ─── Save ────────────────────────────────────────────────────────────────────
+  // ─── Save New Place (Add Mode) ───────────────────────────────────────────────
 
   Future<void> savePlace() async {
+    // ✅ نضمن تصفير الـ Success والـ Error مع بداية التحميل الجديد
     emit(
       state.copyWith(
         isLoading: true,
         isSuccess: false,
-        errorMessage: () => null, // clear before new attempt
+        errorMessage: () => null,
       ),
     );
 
     try {
       await _adminRepository.uploadAndSavePlace(place: state.place);
-      emit(
-        state.copyWith(
-          isLoading: false,
-          isSuccess: true,
-          errorMessage: () => null,
-        ),
-      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            isSuccess: true, // 🔥 ستصل الآن كاملة ومستقرة للـ UI
+            errorMessage: () => null,
+          ),
+        );
+      }
     } catch (e) {
-      _emitError(e.toString());
+      _emitError("Save Place Failed: ${e.toString()}");
+    }
+  }
+
+  // ─── Update Existing Place (Edit Mode) ───────────────────────────────────────
+
+  Future<void> updateExistingPlace(PlaceModel place) async {
+    emit(
+      state.copyWith(
+        isLoading: true,
+        isSuccess: false,
+        errorMessage: () => null,
+      ),
+    );
+
+    try {
+      await _adminRepository.processPlaceUpdate(updatedPlace: place);
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            isSuccess: true, // 🔥 ستصل الآن كاملة ومستقرة للـ UI
+            errorMessage: () => null,
+          ),
+        );
+      }
+    } catch (e) {
+      _emitError("Update Place Failed: ${e.toString()}");
     }
   }
 
@@ -93,7 +164,7 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
 
   Future<List<File>> pickMainImages() async {
     try {
-      final List<XFile> images = await _picker.pickMultiImage();
+      final List<XFile> images = await _picker.pickMultiImage(imageQuality: 60);
       return images.map((e) => File(e.path)).toList();
     } catch (e) {
       debugPrint('Error picking multi images: $e');
@@ -103,7 +174,10 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
 
   Future<File?> pickSubPlaceImage() async {
     try {
-      final XFile? img = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? img = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 60,
+      );
       return img != null ? File(img.path) : null;
     } catch (e) {
       debugPrint('Error picking sub-place image: $e');
@@ -111,30 +185,23 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
     }
   }
 
-  // ─── update place ───────────────────────────────────────────────────────────────────
-
-  // جوه ملف AddPlaceCubit
-  Future<void> updateExistingPlace(PlaceModel place) async {
-    emit(state.copyWith(isLoading: true)); // تأكد إن عندك حالة تحميل
-
-    try {
-      await _adminRepository.processPlaceUpdate(place);
-      emit(state.copyWith(isSuccess: true));
-    } catch (e) {
-      emit(state.copyWith(isSuccess: false, errorMessage: () => e.toString()));
-    }
-  }
-
   // ─── Reset ───────────────────────────────────────────────────────────────────
 
   void reset() => emit(AddPlaceState.initial());
 
+  // 🔥 ميثود جديدة لتصفير الـ Flags يتم استدعاؤها من الـ UI بعد عرض السناك بار أو الانتقال لشاشة أخرى
+  void resetStatusFlags() {
+    if (!isClosed) {
+      emit(state.copyWith(isSuccess: false, errorMessage: () => null));
+    }
+  }
+
   // ─── Private helpers ─────────────────────────────────────────────────────────
 
-  /// Emits an error state, then immediately schedules a follow-up emit
-  /// that clears the error — so BlocListener only fires once and the
-  /// error never bleeds into subsequent states.
   void _emitError(String message) {
+    if (isClosed) return;
+
+    // ✅ نكتفي ببعث الخطأ بوضوح وثبات بدون التسبب في سباق الـ microtask المربك للـ UI
     emit(
       state.copyWith(
         isLoading: false,
@@ -142,12 +209,5 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
         errorMessage: () => message,
       ),
     );
-    // Clear after emitting so the error doesn't persist in state
-    // and re-trigger the listener on the next unrelated rebuild.
-    Future.microtask(() {
-      if (!isClosed) {
-        emit(state.copyWith(errorMessage: () => null));
-      }
-    });
   }
 }
