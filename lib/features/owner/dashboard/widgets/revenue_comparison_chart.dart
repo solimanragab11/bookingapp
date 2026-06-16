@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
 class RevenueComparisonChart extends StatelessWidget {
   final double appRevenue;
@@ -83,9 +83,9 @@ class RevenueComparisonChart extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildLegendItem("App", ColorManager.egyptianEarth),
+              _buildLegendItem(context.tr('chart_app_legend', defaultValue: 'App'), ColorManager.egyptianEarth),
               const SizedBox(width: 10),
-              _buildLegendItem("Man.", ColorManager.wasabi),
+              _buildLegendItem(context.tr('chart_manual_legend', defaultValue: 'Man.'), ColorManager.wasabi),
             ],
           ),
         ],

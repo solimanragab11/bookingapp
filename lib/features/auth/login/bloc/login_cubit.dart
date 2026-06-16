@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_states.dart';
-import 'package:remaking_booking_app_trail2/features/auth/repo/auth_repo.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/features/auth/login/bloc/login_states.dart';
+import 'package:hanzbthalk/features/auth/repo/auth_repo.dart';
 
 class LoginCubit extends Cubit<LoginState> {
   final AuthRepo _authRepo;
@@ -59,6 +60,10 @@ class LoginCubit extends Cubit<LoginState> {
       _cancelTimer();
       if (isClosed) return;
       emit(LoginSuccess(user));
+    } on DatabaseException catch (e) {
+      debugPrint('[LoginCubit] verifyLoginOTP database error: ${e.message}');
+      if (isClosed) return;
+      emit(LoginError(e.message));
     } catch (e) {
       debugPrint('[LoginCubit] verifyLoginOTP error: $e');
       if (isClosed) return;

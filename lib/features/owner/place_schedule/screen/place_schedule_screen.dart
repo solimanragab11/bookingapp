@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/owner/data/data_sources/firestore_owner_service.dart';
-import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/logic/schedule_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/logic/schedule_state.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/booking_summary_dialog.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/calendar_strip.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/place_schedule_header.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/schedule_action_bar.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/sub_place_selector.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/widgets/time_slots_list.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/repos/pricing_repository.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/core/db/firestore_owner_service.dart';
+import 'package:hanzbthalk/features/owner/repos/owner_repo_impl.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/logic/schedule_cubit.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/logic/schedule_state.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/booking_summary_dialog.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/calendar_strip.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/place_schedule_header.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/schedule_action_bar.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/sub_place_selector.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/time_slots_list.dart';
 // تأكد من استيراد الـ Service لو كنت بتستخدمها هنا
-// import 'package:remaking_booking_app_trail2/features/owner/data/owner_service.dart';
+// import 'package:hanzbthalk/features/owner/data/owner_service.dart';
 
 class PlaceScheduleScreen extends StatelessWidget {
   final String placeId; // غيرنا دي لـ ID بس عشان نضمن الـ Live Data
@@ -32,6 +34,7 @@ class PlaceScheduleScreen extends StatelessWidget {
       create: (context) => ScheduleCubit(
         FirestoreOwnerService(AuthService()),
         OwnerRepoImpl(FirestoreOwnerService(AuthService())),
+        getIt<PricingRepository>(),
       )..startWatchingPlace(placeId),
       child: Scaffold(
         backgroundColor: ColorManager.noirDeVigne,
@@ -50,12 +53,14 @@ class PlaceScheduleScreen extends StatelessWidget {
                       ),
                     );
                   } else if (state.status == ScheduleStatus.error) {
+                    final rawError = state.errorMessage ?? 'error';
+                    // لو الرسالة مفتاح ترجمة معروف نترجمها، غير كده نعرضها زي ما هي
+                    final displayed = context.tr(rawError, defaultValue: rawError);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          context.tr(state.errorMessage ?? 'error'),
-                        ),
+                        content: Text(displayed),
                         backgroundColor: Colors.redAccent,
+                        duration: const Duration(seconds: 5),
                       ),
                     );
                   }
@@ -112,25 +117,26 @@ class PlaceScheduleScreen extends StatelessWidget {
         Column(
           children: [
             CalendarStrip(
-              place: currentPlace,
+              slots: state.currentSlots,
               selectedDate: state.selectedDate,
               selectedSubPlaceIndex: state.selectedSubPlaceIndex,
               onDateSelected: scheduleCubit.selectDate,
             ),
             SubPlaceSelector(
-              count: currentPlace.subPlaces.length,
+              count: state.subPlaces.length,
               selectedIndex: state.selectedSubPlaceIndex,
               onTap: scheduleCubit.selectSubPlace,
             ),
             Expanded(
               child: TimeSlotsList(
-                place: currentPlace,
+                subPlaces: state.subPlaces,
+                slots: state.currentSlots,
                 selectedDate: state.selectedDate,
                 subPlaceIndex: state.selectedSubPlaceIndex,
                 selectedSlots: state.selectedSlots,
                 activeBookingId: state.activeBookingId,
                 onSlotTap: (slot, isBooked, _) {
-                  scheduleCubit.toggleSlot(slot, isBooked, place: currentPlace);
+                  scheduleCubit.toggleSlot(slot, isBooked);
                 },
               ),
             ),
@@ -178,10 +184,10 @@ class PlaceScheduleScreen extends StatelessWidget {
             userPhone: phone,
             placeId: currentPlace.id,
             subPlaceId:
-                state.currentPlace!.subPlaces[state.selectedSubPlaceIndex].id,
+                state.subPlaces[state.selectedSubPlaceIndex].id,
             selectedSlots: state.selectedSlots,
             pricePerHour:
-                (currentPlace
+                (state
                         .subPlaces[state.selectedSubPlaceIndex]
                         .pricePerHour)
                     .toDouble(),
@@ -193,7 +199,7 @@ class PlaceScheduleScreen extends StatelessWidget {
   }
 
   double _calculateTotal(PlaceModel place, ScheduleState state) {
-    final subPlace = place.subPlaces[state.selectedSubPlaceIndex];
+    final subPlace = state.subPlaces[state.selectedSubPlaceIndex];
     final double price = (subPlace.pricePerHour).toDouble();
     return state.selectedSlots.length * price;
   }

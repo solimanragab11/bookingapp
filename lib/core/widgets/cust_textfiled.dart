@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class CustTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -11,6 +11,10 @@ class CustTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final Color? textColor;
   final Color? iconColor;
+  final Color? fillColor;
+  final Color? focusedBorderColor;
+  final Color? enabledBorderColor;
+  final Color? hintTextColor;
 
   const CustTextField({
     super.key,
@@ -22,6 +26,10 @@ class CustTextField extends StatelessWidget {
     this.validator,
     this.textColor = Colors.black, // اللون الافتراضي للنص
     this.iconColor = ColorManager.wasabi, // اللون الافتراضي للأيقونة
+    this.fillColor,
+    this.focusedBorderColor,
+    this.enabledBorderColor,
+    this.hintTextColor,
   });
 
   @override
@@ -41,21 +49,28 @@ class CustTextField extends StatelessWidget {
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: iconColor),
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.withOpacity(0.7)),
+        hintStyle: TextStyle(color: hintTextColor ?? Colors.grey.withOpacity(0.7)),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.9),
+        fillColor: fillColor ?? Colors.white.withOpacity(0.9),
         // تعديل الـ Border ليكون متناسق مع تصميم الـ Login
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none,
+          borderSide: enabledBorderColor != null
+              ? BorderSide(color: enabledBorderColor!, width: 1.0)
+              : BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none,
+          borderSide: enabledBorderColor != null
+              ? BorderSide(color: enabledBorderColor!, width: 1.0)
+              : BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: ColorManager.wasabi, width: 1.5),
+          borderSide: BorderSide(
+            color: focusedBorderColor ?? ColorManager.wasabi,
+            width: 1.5,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),

@@ -21,4 +21,10 @@ class Routes {
   static const String activateOfferRoute = '/activateOffer';
   static const String adminDashboardScreen = '/adminDashboardScreen';
   static const String adminMangeAuth = '/adminMangeAuth';
+
+  // Owner Onboarding Flow
+  static const String ownerIntro = '/ownerIntro';
+  static const String ownerAgreement = '/ownerAgreement';
+  static const String ownerPending = '/ownerPending';
+  static const String manageEmployees = '/manageEmployees';
 }

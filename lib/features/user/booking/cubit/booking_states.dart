@@ -1,5 +1,6 @@
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
 
 abstract class BookingState {}
 
@@ -81,7 +82,8 @@ class BookingSlotsUnavailable extends BookingState {
 
 class BookingDataState extends BookingState {
   final PlaceModel? place; // أضفنا ده
-  final SubPlace? liveSubPlace; // أضفنا ده
+  final SubPlaceModel? liveSubPlace; // أضفنا ده
+  final SlotsModel? slots; // أضفنا ده للـ Slots
   final String? selectedDay;
   final Set<String> selectedBookingSlots;
   final double originalTotalAmount;
@@ -92,13 +94,16 @@ class BookingDataState extends BookingState {
   final double remainingAmount;
   final double pricePerhour;
   final int usedPoints;
+  final int userPoints;
   final bool isOffer;
 
   BookingDataState({
     this.place,
     this.liveSubPlace,
+    this.slots,
     this.pricePerhour = 0,
     this.usedPoints = 0,
+    this.userPoints = 0,
     this.selectedDay,
     this.selectedBookingSlots = const {},
     this.originalTotalAmount = 0.0,
@@ -112,7 +117,8 @@ class BookingDataState extends BookingState {
 
   BookingDataState copyWith({
     PlaceModel? place,
-    SubPlace? liveSubPlace,
+    SubPlaceModel? liveSubPlace,
+    SlotsModel? slots,
     String? selectedDay,
     Set<String>? selectedBookingSlots,
     double? originalTotalAmount,
@@ -122,10 +128,14 @@ class BookingDataState extends BookingState {
     double? paidAmount,
     double? remainingAmount,
     int? usedPoints,
+    int? userPoints,
     bool? isOffer,
     double? pricePerhour,
   }) {
     return BookingDataState(
+      place: place ?? this.place,
+      liveSubPlace: liveSubPlace ?? this.liveSubPlace,
+      slots: slots ?? this.slots,
       selectedDay: selectedDay ?? this.selectedDay,
       selectedBookingSlots: selectedBookingSlots ?? this.selectedBookingSlots,
       originalTotalAmount: originalTotalAmount ?? this.originalTotalAmount,
@@ -135,6 +145,7 @@ class BookingDataState extends BookingState {
       paidAmount: paidAmount ?? this.paidAmount,
       remainingAmount: remainingAmount ?? this.remainingAmount,
       usedPoints: usedPoints ?? this.usedPoints,
+      userPoints: userPoints ?? this.userPoints,
       isOffer: isOffer ?? this.isOffer,
       pricePerhour: pricePerhour ?? this.pricePerhour,
     );

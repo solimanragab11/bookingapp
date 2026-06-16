@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/tab_widget.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/widgets/tab_widget.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
 
 class HomeTabsSection extends StatelessWidget {
   const HomeTabsSection({super.key, required this.currentTab});

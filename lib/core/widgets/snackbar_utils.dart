@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
 class SnackBarUtils {
   /// دالة لإظهار SnackBar باللون الأحمر للأخطاء

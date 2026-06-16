@@ -1,16 +1,19 @@
+// top of page change:
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/login_bottomsheet.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/cust_button.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/cust_textfiled.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/lang_button.dart';
-import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_states.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/core/widgets/login_bottomsheet.dart';
+import 'package:hanzbthalk/core/widgets/cust_button.dart';
+import 'package:hanzbthalk/core/widgets/cust_textfiled.dart';
+import 'package:hanzbthalk/core/widgets/lang_button.dart';
+import 'package:hanzbthalk/core/widgets/brand_logo.dart';
+import 'package:hanzbthalk/features/auth/login/bloc/login_cubit.dart';
+import 'package:hanzbthalk/features/auth/login/bloc/login_states.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,10 +25,30 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  String _appVersion = '';
 
   // Flag لمنع تكرار فتح الـ BottomSheet
   // ignore: unused_field
   bool _otpSheetOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPackageInfo();
+  }
+
+  Future<void> _initPackageInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = packageInfo.version;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error getting package info: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -37,7 +60,6 @@ class _LoginPageState extends State<LoginPage> {
   // OTP bottom sheet logic
   // ---------------------------------------------------------------------------
   void _showOtpSheet(String verificationId) {
-    // بنشيل شرط الـ if (_otpSheetOpen) عشان نسمح لها تفتح تاني لو اليوزر قفلها يدوي
     _otpSheetOpen = true;
 
     final cubit = context.read<LoginCubit>();
@@ -52,9 +74,21 @@ class _LoginPageState extends State<LoginPage> {
         smsCode: smsCode,
       ),
     ).then((_) {
-      // السطر ده سحر! لما الـ BottomSheet يقفل (بأي طريقة)، بنصفر الـ Flag
       _otpSheetOpen = false;
     });
+  }
+
+  Future<void> _launchWebsiteUrl() async {
+    final Uri url = Uri.parse('https://hanzbthalk-aa12c.web.app/');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint("Could not launch $url");
+      }
+    } catch (e) {
+      debugPrint("Error launching url: $e");
+    }
   }
 
   @override
@@ -62,6 +96,7 @@ class _LoginPageState extends State<LoginPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: ColorManager.noirDeVigne,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -71,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
       ),
       body: Stack(
         children: [
-          BackGround(h: size.height, w: size.width),
           BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
               if (state is LoginCodeSent) {
@@ -81,15 +115,16 @@ class _LoginPageState extends State<LoginPage> {
                 if (Navigator.canPop(context)) Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, Routes.authWrapper);
               } else if (state is LoginError) {
-                _otpSheetOpen = false;
-                ScaffoldMessenger.of(context)
-                  ..hideCurrentSnackBar()
-                  ..showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr(state.messageKey)),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                if (!_otpSheetOpen) {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: Text(context.tr(state.messageKey)),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                }
               }
             },
             child: SafeArea(
@@ -106,23 +141,17 @@ class _LoginPageState extends State<LoginPage> {
                       child: IntrinsicHeight(
                         child: Form(
                           key: _formKey,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               SizedBox(height: size.height * 0.05),
-                              FittedBox(
-                                child: Text(
-                                  context.tr('appName'),
-                                  style: TextStyleMangare.headingStyle.copyWith(
-                                    fontSize: size.height * 0.065,
-                                    color: ColorManager.wasabi,
-                                  ),
-                                ),
-                              ),
+                              BrandLogo(fontSize: size.height * 0.065),
                               Text(
                                 context.tr('welcomeBack'),
                                 style: TextStyleMangare.headingStyle.copyWith(
                                   fontSize: size.height * 0.025,
+                                  color: ColorManager.creasedKhaki,
                                 ),
                               ),
                               const Spacer(),
@@ -131,11 +160,17 @@ class _LoginPageState extends State<LoginPage> {
                                 hint: context.tr('phoneNumber'),
                                 icon: Icons.phone_android,
                                 isPhone: true,
+                                textColor: Colors.white,
+                                hintTextColor: Colors.white.withOpacity(0.4),
+                                iconColor: ColorManager.wasabi,
+                                fillColor: ColorManager.cardSurface,
+                                enabledBorderColor: ColorManager.emeraldGreen,
+                                focusedBorderColor: ColorManager.egyptianEarth,
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
                                     return context.tr('phoneRequired');
                                   }
-                                  if (value.trim().length < 10) {
+                                  if (value.trim().length < 11) {
                                     return context.tr('phoneInvalid');
                                   }
                                   return null;
@@ -153,12 +188,8 @@ class _LoginPageState extends State<LoginPage> {
                                     curr is LoginResendCountdown ||
                                     curr is LoginResendEnabled,
                                 builder: (context, state) {
-                                  if (state is LoginSendOTPLoading) {
-                                    return const CircularProgressIndicator(
-                                      color: ColorManager.wasabi,
-                                    );
-                                  }
-
+                                  final isLoading =
+                                      state is LoginSendOTPLoading;
                                   // التحقق لو العداد شغال
                                   bool isCountdown =
                                       state is LoginResendCountdown;
@@ -176,9 +207,10 @@ class _LoginPageState extends State<LoginPage> {
                                     // لون باهت لو الزرار معطل
                                     color: isCountdown
                                         ? Colors.grey
-                                        : ColorManager.wasabi,
+                                        : ColorManager.egyptianEarth,
                                     size: 'mid',
                                     lable: btnLabel,
+                                    isLoading: isLoading,
                                     onTap: () {
                                       final cubit = context.read<LoginCubit>();
 
@@ -207,11 +239,34 @@ class _LoginPageState extends State<LoginPage> {
                                 child: Text(
                                   context.tr('dontHaveAccountSignUp'),
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: ColorManager.creasedKhaki,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 10),
+                              GestureDetector(
+                                onTap: _launchWebsiteUrl,
+                                child: Text(
+                                  context.tr('visitWebsite'),
+                                  style: const TextStyle(
+                                    color: ColorManager.wasabi,
+                                    decoration: TextDecoration.underline,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (_appVersion.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  '${context.tr('version')} $_appVersion',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.5),
+                                    fontSize: 12,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 20),
                             ],
                           ),

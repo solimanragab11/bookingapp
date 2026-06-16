@@ -1,53 +1,127 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_states.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/core/repos/pricing_repository.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_states.dart';
 import 'package:uuid/uuid.dart';
 
 class BookingCubit extends Cubit<BookingState> {
   final BookingService _bookingService;
   final AuthService _authService;
+  final PricingRepository _pricingRepository;
   PlaceModel? _place;
-  SubPlace? _subPlace;
+  SubPlaceModel? _subPlace;
 
-  BookingCubit(this._bookingService, this._authService)
+  StreamSubscription? _subPlaceSubscription;
+  StreamSubscription? _slotsSubscription;
+
+  BookingCubit(this._bookingService, this._authService, this._pricingRepository)
     : super(BookingInitial());
 
   // 1. تهيئة الحجز
   void initializeBooking({
     required PlaceModel place,
-    required SubPlace subPlace,
+    required SubPlaceModel subPlace,
   }) {
     _place = place;
     _subPlace = subPlace;
-    final firstDay = subPlace.freeTimeSlots.keys.firstOrNull;
 
     emit(
       BookingDataState(
-        selectedDay: firstDay,
-        selectedBookingSlots: {},
+        place: place,
+        liveSubPlace: subPlace,
+        selectedBookingSlots: const {},
         originalTotalAmount: 0.0,
         finalAmount: 0.0,
         paidAmount: 0.0,
         remainingAmount: 0.0,
         isOffer: false,
         usedPoints: 0,
+        userPoints: 0,
         pricePerhour: subPlace.pricePerHour.toDouble(),
       ),
     );
+
+    // Fetch user points asynchronously and update the state
+    getUserPoints().then((points) {
+      if (state is BookingDataState) {
+        final currentState = state as BookingDataState;
+        emit(currentState.copyWith(userPoints: points));
+      }
+    });
+
+    // Watch subplace updates
+    _subPlaceSubscription?.cancel();
+    _subPlaceSubscription = _bookingService
+        .getSubPlaceStream(place.id, subPlace.id)
+        .listen(
+          (newSubPlace) {
+            _subPlace = newSubPlace;
+            if (state is BookingDataState) {
+              final currentState = state as BookingDataState;
+              emit(
+                currentState.copyWith(
+                  liveSubPlace: newSubPlace,
+                  pricePerhour: newSubPlace.pricePerHour.toDouble(),
+                ),
+              );
+            }
+          },
+          onError: (error) {
+            debugPrint("❌ BookingCubit: Error watching subplace for ID '${subPlace.id}': $error");
+            emit(BookingFailure(errorMessage: 'error_occurred'));
+          },
+        );
+
+    // Watch slots updates
+    final slotsId = subPlace.slotsIds.isNotEmpty
+        ? subPlace.slotsIds.first
+        : subPlace.id;
+    _slotsSubscription?.cancel();
+    _slotsSubscription = _bookingService
+        .watchSlots(slotsId)
+        .listen(
+          (newSlots) {
+            if (state is BookingDataState) {
+              final currentState = state as BookingDataState;
+              final currentSelectedDay =
+                  currentState.selectedDay ??
+                  newSlots.freeTimeSlots.keys.firstOrNull;
+              emit(
+                currentState.copyWith(
+                  slots: newSlots,
+                  selectedDay: currentSelectedDay,
+                ),
+              );
+            }
+          },
+          onError: (error) {
+            debugPrint("❌ BookingCubit: Error watching slots for ID '$slotsId': $error");
+            emit(BookingFailure(errorMessage: 'noSlotsAvailable'));
+          },
+        );
   }
 
   // 2. تحديث الداتا لما الـ StreamBuilder يلقط تغيير من Firestore
-  void updateLiveSubPlace(SubPlace newSubPlace) {
+  void updateLiveSubPlace(SubPlaceModel newSubPlace) {
     _subPlace = newSubPlace;
     if (state is BookingDataState) {
       final currentState = state as BookingDataState;
       emit(currentState.copyWith());
     }
+  }
+
+  @override
+  Future<void> close() {
+    _subPlaceSubscription?.cancel();
+    _slotsSubscription?.cancel();
+    return super.close();
   }
 
   // 3. اختيار اليوم (بيصفر الساعات المختارة)
@@ -146,12 +220,17 @@ class BookingCubit extends Cubit<BookingState> {
     required bool isOffer,
     required int points,
   }) {
-    // قاعدة الخصم: كل نقطة بـ 1%
-    double discountFactor = isOffer ? (points / 100) : 0.0;
-    double newFinalAmount = newOriginalPrice * (1 - discountFactor);
+    double newFinalAmount = _pricingRepository.calculateDiscountedPrice(
+      originalPrice: newOriginalPrice,
+      points: points,
+      isOffer: isOffer,
+    );
 
     // حساب العربون بناءً على عدد الساعات
-    double deposit = _calculateDeposit(newSlots.length);
+    double deposit = _pricingRepository.calculateRequiredDeposit(
+      slotCount: newSlots.length,
+      isOwner: false,
+    );
 
     emit(
       currentState.copyWith(
@@ -173,9 +252,6 @@ class BookingCubit extends Cubit<BookingState> {
       ),
     );
   }
-
-  double _calculateDeposit(int count) =>
-      count == 0 ? 0.0 : (((count + 2) ~/ 3) * 100).toDouble();
 
   // جلب رصيد النقاط من الداتابيز
   Future<int> getUserPoints() async {
@@ -241,7 +317,9 @@ class BookingCubit extends Cubit<BookingState> {
       }
 
       await _bookingService.addPointsToUserWithId(
-        pointsToAdd: 5,
+        pointsToAdd: _pricingRepository.calculatePointsToAdd(
+          finalPrice: currentState.finalAmount,
+        ),
         userId: userId,
       );
 

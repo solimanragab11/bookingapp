@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/place_card.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/widgets/place_card_skeleton.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/widgets/place_card.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
+import 'package:hanzbthalk/features/user/home/widgets/place_card_skeleton.dart';
 
 class AdminPlaceListView extends StatelessWidget {
   const AdminPlaceListView({

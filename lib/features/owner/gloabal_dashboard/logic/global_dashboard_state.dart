@@ -1,4 +1,4 @@
-import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
+import 'package:hanzbthalk/core/db/booking_analytics_service.dart';
 
 abstract class GlobalDashboardState {}
 

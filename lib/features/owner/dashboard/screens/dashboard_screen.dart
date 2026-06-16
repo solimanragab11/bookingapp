@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/di/dependency_injection.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/dashboard_app_bar.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/date_display_banner.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/main_revenue_card.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/stats_grid.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/widgets/usage_performance_card.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/features/owner/dashboard/widgets/dashboard_app_bar.dart';
+import 'package:hanzbthalk/features/owner/dashboard/widgets/date_display_banner.dart';
+import 'package:hanzbthalk/features/owner/dashboard/widgets/main_revenue_card.dart';
+import 'package:hanzbthalk/features/owner/dashboard/widgets/stats_grid.dart';
+import 'package:hanzbthalk/features/owner/dashboard/widgets/usage_performance_card.dart';
 import '../logic/dashboard_cubit.dart';
 import '../logic/dashboard_state.dart';
+
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String placeId;
@@ -35,6 +39,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final currentUser = context.read<AuthCubit>().currentUser;
+    final canViewAnalytics = currentUser != null && PermissionService.can(currentUser, 'viewAnalytics');
 
     return BlocProvider(
       // إنشاء الكوبيت باستخدام getIt
@@ -81,21 +87,31 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           children: [
                             DateDisplayBanner(range: selectedRange!),
                             const SizedBox(height: 20),
-                            MainRevenueCard(
-                              totalRevenue:
-                                  state.stats.totalAppRevenue +
-                                  state.stats.totalManualRevenue,
-                            ),
-                            const SizedBox(height: 16),
-                            StatsGrid(stats: state.stats),
-                            const SizedBox(height: 16),
-                            UsagePerformanceCard(
-                              totalHours:
-                                  state.stats.appHours +
-                                  state
-                                      .stats
-                                      .manualHours, // أو إجمالي الساعات حسب الموديل بتاعك
-                            ),
+                            if (canViewAnalytics) ...[
+                              MainRevenueCard(
+                                totalRevenue:
+                                    state.stats.totalAppRevenue +
+                                    state.stats.totalManualRevenue,
+                              ),
+                              const SizedBox(height: 16),
+                              StatsGrid(stats: state.stats),
+                              const SizedBox(height: 16),
+                              UsagePerformanceCard(
+                                totalHours:
+                                    state.stats.appHours +
+                                    state.stats.manualHours,
+                              ),
+                            ] else ...[
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 40),
+                                  child: Text(
+                                    context.tr('permission_denied', defaultValue: 'Permission Denied'),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       );

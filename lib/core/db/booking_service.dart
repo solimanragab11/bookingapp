@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/core/models/booking_id_model.dart';
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 class BookingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -26,6 +28,20 @@ class BookingService {
     }
   }
 
+  Future<List<SubPlaceModel>> getAllSubPlaces() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('subplaces').get();
+      return snapshot.docs
+          .map(
+            (doc) => SubPlaceModel.fromJson(doc.data() as Map<String, dynamic>),
+          )
+          .toList();
+    } catch (e) {
+      debugPrint("Error fetching all subplaces: $e");
+      return [];
+    }
+  }
+
   // 1. إضافة حجز جديد
   Future<void> addBooking(BookingModel booking) async {
     try {
@@ -41,7 +57,6 @@ class BookingService {
     }
   }
 
-  // 3. العملية المعقدة: التأكد من التوافر وحجز الوقت في خطوة واحدة (Atomic Transaction)
   // 3. العملية المعقدة: التأكد من التوافر وحجز الوقت (Atomic Transaction)
   Future<void> bookSlots({
     required String placeId,
@@ -50,41 +65,32 @@ class BookingService {
     required String userId,
     required String orderId,
   }) async {
-    final DocumentReference placeRef = _firestore
-        .collection('places')
-        .doc(placeId);
+    final DocumentReference slotsRef = _firestore
+        .collection('slots')
+        .doc(subPlaceId);
 
     return await _firestore.runTransaction((transaction) async {
-      DocumentSnapshot placeSnapshot = await transaction.get(placeRef);
+      DocumentSnapshot slotsSnapshot = await transaction.get(slotsRef);
 
-      if (!placeSnapshot.exists) {
-        throw Exception('المكان غير موجود!');
+      if (!slotsSnapshot.exists) {
+        throw Exception('schedule_not_found');
       }
 
-      final placeData = placeSnapshot.data() as Map<String, dynamic>;
-      List<dynamic> subPlacesData = List.from(placeData['subPlaces'] ?? []);
-
-      final subPlaceIndex = subPlacesData.indexWhere(
-        (sp) => sp['id'] == subPlaceId,
-      );
-      if (subPlaceIndex == -1) {
-        throw Exception('الملعب أو القسم غير موجود!');
-      }
-
-      final subPlaceData = subPlacesData[subPlaceIndex];
-
-      // --- التعديل هنا: تحويل البيانات للهيكل الجديد ---
-      Map<String, List<String>> freeTimeSlots = _parseSlots(
-        subPlaceData['freeTimeSlots'],
+      final slots = SlotsModel.fromJson(
+        slotsSnapshot.data() as Map<String, dynamic>,
       );
 
-      // تحويل الـ List القادمة من Firestore لموديلات
-      List<BookingIdModel> bookedTimeSlots =
-          (subPlaceData['bookedTimeSlots'] as List? ?? [])
-              .map(
-                (item) => BookingIdModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList();
+      // Copy lists to mutate
+      final Map<String, List<String>> freeTimeSlots = Map.from(
+        slots.freeTimeSlots.map(
+          (key, value) => MapEntry(key, List<String>.from(value)),
+        ),
+      );
+      final List<BookingIdModel> bookedTimeSlots = List.from(
+        slots.bookedTimeSlots,
+      );
+
+      final UserModel? user = await _auth.getCurrentUser();
 
       // التأكد إن كل المواعيد المطلوبة لسه "متاحة"
       for (var entry in selectedSlots.entries) {
@@ -98,20 +104,17 @@ class BookingService {
           );
 
           if (!isFree || isAlreadyBooked) {
-            throw Exception(
-              'للأسف، الساعة $slot في يوم $day طارت وحجزها حد تاني!',
-            );
+            throw const SlotAlreadyBookedException('msg_already_booked');
           }
         }
       }
-      final UserModel user = await _auth.getCurrentUser() as UserModel;
-      // تنفيذ الحجز: نقل المواعيد
-      // بنعمل موديل جديد للحجز الحالي
+
+      // تنفذ الحجز: نقل المواعيد
       BookingIdModel newBooking = BookingIdModel(
         bookingId: orderId,
         slots: selectedSlots,
         bookedBy: 'user',
-        bookername: user.username,
+        bookername: user?.username ?? 'unknown',
       );
 
       for (var entry in selectedSlots.entries) {
@@ -124,23 +127,13 @@ class BookingService {
       // إضافة الحجز الجديد للقائمة
       bookedTimeSlots.add(newBooking);
 
-      // تحديث البيانات في Firestore
-      subPlacesData[subPlaceIndex]['freeTimeSlots'] = freeTimeSlots;
-      // تحويل لستة الموديلات لـ JSON
-      subPlacesData[subPlaceIndex]['bookedTimeSlots'] = bookedTimeSlots
-          .map((e) => e.toJson())
-          .toList();
+      final updatedSlots = slots.copyWith(
+        freeTimeSlots: freeTimeSlots,
+        bookedTimeSlots: bookedTimeSlots,
+      );
 
-      transaction.update(placeRef, {'subPlaces': subPlacesData});
+      transaction.set(slotsRef, updatedSlots.toJson());
     });
-  }
-
-  // ميثود مساعدة لتحويل البيانات القادمة من Firestore لشكل Map سليم
-  Map<String, List<String>> _parseSlots(dynamic data) {
-    if (data == null) return {};
-    return (data as Map<String, dynamic>).map(
-      (key, value) => MapEntry(key, List<String>.from(value)),
-    );
   }
 
   // 4. إلغاء حجز
@@ -158,7 +151,7 @@ class BookingService {
 
       return snapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
-      throw Exception("خطأ أثناء جلب الحجوزات: $e");
+      throw Exception("error_fetching_bookings");
     }
   }
 
@@ -238,8 +231,7 @@ class BookingService {
         'points': FieldValue.increment(-pointsToDeduct),
       });
     } catch (e) {
-      debugPrint("خطأ أثناء خصم النقاط: $e");
-      throw Exception("فشل في تحديث النقاط");
+      throw Exception("failed_to_update_points");
     }
   }
 
@@ -257,34 +249,37 @@ class BookingService {
   }
   // features/user/booking/services/booking_service.dart
 
-  Stream<SubPlace> getSubPlaceStream(String placeId, String subPlaceId) {
-    return _firestore
-        .collection('places')
-        .doc(placeId)
-        .snapshots() // 1. بنراقب الـ Document بتاع الـ Place كله
-        .map((snapshot) {
-          // 2. بنتأكد إن الداتا موجودة
-          if (!snapshot.exists || snapshot.data() == null) {
-            throw Exception("Place not found");
-          }
+  Stream<SubPlaceModel> getSubPlaceStream(String placeId, String subPlaceId) {
+    return _firestore.collection('subplaces').doc(subPlaceId).snapshots().map((
+      snapshot,
+    ) {
+      if (!snapshot.exists || snapshot.data() == null) {
+        throw const SubPlaceNotFoundException("SubPlace not found");
+      }
+      return SubPlaceModel.fromJson(snapshot.data() as Map<String, dynamic>);
+    });
+  }
 
-          final data = snapshot.data() as Map<String, dynamic>;
+  Stream<SlotsModel> watchSlots(String slotsId) {
+    return _firestore.collection('slots').doc(slotsId).snapshots().map((
+      snapshot,
+    ) {
+      if (!snapshot.exists || snapshot.data() == null) {
+        throw Exception("Slots not found");
+      }
+      return SlotsModel.fromJson(snapshot.data() as Map<String, dynamic>);
+    });
+  }
 
-          // 3. بنجيب لستة الـ subPlaces
-          final List<dynamic> subList = data['subPlaces'] ?? [];
-
-          // 4. بنعمل Filter عشان نطلع الـ subPlace المطلوب بالـ ID
-          final updatedData = subList.firstWhere(
-            (e) => e['id'] == subPlaceId,
-            orElse: () => null,
-          );
-
-          if (updatedData == null) {
-            throw Exception("SubPlace not found");
-          }
-
-          // 5. بنحول الـ Map لموديل SubPlace ونبعته في الـ Stream
-          return SubPlace.fromJson(updatedData as Map<String, dynamic>);
-        });
+  Future<List<SlotsModel>> getAllSlots() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('slots').get();
+      return snapshot.docs
+          .map((doc) => SlotsModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint("Error fetching all slots: $e");
+      return [];
+    }
   }
 }

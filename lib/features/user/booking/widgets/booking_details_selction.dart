@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_states.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/text_details_booking_widget.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_states.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/text_details_booking_widget.dart';
 
 class BookingDetailsSection extends StatelessWidget {
   final PlaceModel place;
@@ -20,7 +20,7 @@ class BookingDetailsSection extends StatelessWidget {
       h: MediaQuery.of(context).size.height,
       place: place,
       subPlace: state.liveSubPlace!,
-      availableDaysWithSlots: state.liveSubPlace!.freeTimeSlots,
+      availableDaysWithSlots: state.slots?.freeTimeSlots ?? {},
       selectedDay: state.selectedDay,
       onDaySelected: (day) {
         // cubit.selectDay(day!);

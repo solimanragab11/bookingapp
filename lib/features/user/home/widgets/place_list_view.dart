@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/place_card.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/widgets/place_card_skeleton.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/widgets/place_card.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
+import 'package:hanzbthalk/features/user/home/widgets/place_card_skeleton.dart';
 
 class PlaceListView extends StatelessWidget {
-  const PlaceListView({
-    super.key,
-    this.category,
-  }); // صلحنا الاسم هنا لـ category
-  final String?
-  category; // خليناه String عشان يطابق الـ id اللي جاي من الـ Home
+  final Key? firstCardKey;
+  final String? category;
+
+  const PlaceListView({super.key, this.category, this.firstCardKey});
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +19,7 @@ class PlaceListView extends StatelessWidget {
       builder: (context, state) {
         if (state is HomeLoading) {
           return ListView.builder(
+            shrinkWrap: true,
             itemCount: 5,
             physics: const NeverScrollableScrollPhysics(),
             itemBuilder: (context, index) => const PlaceCardSkeleton(),
@@ -39,11 +39,13 @@ class PlaceListView extends StatelessWidget {
           }
 
           return ListView.builder(
-            physics: const BouncingScrollPhysics(),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: filteredPlaces.length,
             itemBuilder: (context, index) {
               final place = filteredPlaces[index];
               return PlaceCard(
+                key: index == 0 ? firstCardKey : null,
                 place: place, // بنبعت الـ place المفلتر علطول
                 onPressed: () => Navigator.pushNamed(
                   context,
@@ -80,7 +82,7 @@ class PlaceListView extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            "لا توجد أماكن في هذه الفئة حالياً", // تقدر تستخدم context.tr هنا
+            context.tr('noPlacesInCategory'),
             style: const TextStyle(color: Colors.white70, fontSize: 18),
           ),
         ],

@@ -1,5 +1,5 @@
 // لازم الكلاس الأساسي يكون كدا
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class AdminHomeStats {}
 

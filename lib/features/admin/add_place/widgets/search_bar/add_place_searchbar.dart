@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_state.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_cubit.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_state.dart';
 // استيراد الـ Widgets الجديدة
 import 'selected_owner_banner.dart';
 import 'search_results_list.dart';

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/lang_button.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/lang_button.dart';
 
 class CustAppBar extends StatelessWidget {
-  const CustAppBar({super.key, required this.width});
+  const CustAppBar({super.key, required this.width, required this.onTap});
   final double width;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -24,6 +25,10 @@ class CustAppBar extends StatelessWidget {
               fontSize: width * 0.045,
               fontWeight: FontWeight.bold,
             ),
+          ),
+          IconButton(
+            onPressed: onTap,
+            icon: Icon(Icons.delete_forever, color: Colors.red),
           ),
           const Spacer(flex: 2),
           const LanguageToggleButton(),

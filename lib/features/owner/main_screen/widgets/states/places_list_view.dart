@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/owner/main_screen/widgets/place_card.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/features/owner/main_screen/widgets/place_card_owner.dart';
 
 class PlacesListView extends StatelessWidget {
   final List<PlaceModel> places;
@@ -13,7 +13,7 @@ class PlacesListView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: places.length,
       itemBuilder: (context, index) {
-        return PlaceCard(place: places[index]);
+        return PlaceCardOwner(place: places[index]);
       },
     );
   }

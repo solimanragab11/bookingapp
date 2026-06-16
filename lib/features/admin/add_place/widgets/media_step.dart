@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class MediaStep extends StatelessWidget {
   // غيرنا النوع لـ dynamic عشان يشيل الـ String (الـ URL القديم) والـ File (الصور الجديدة) سوا

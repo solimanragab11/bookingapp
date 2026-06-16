@@ -1,11 +1,17 @@
 import java.util.Properties
 import java.io.FileInputStream
 
-// 1. تعريف وقراءة ملف الخصائص (key.properties)
-val keystoreProperties = Properties()
+// قراءة ملفات الإعدادات
 val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+val secretsPropertiesFile = rootProject.file("secrets.properties")
+val secretsProperties = Properties()
+if (secretsPropertiesFile.exists()) {
+    secretsProperties.load(FileInputStream(secretsPropertiesFile))
 }
 
 plugins {
@@ -16,7 +22,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.remaking_booking_app_trail2"
+    namespace = "com.hanzbthalk.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -25,37 +31,37 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    // رجعنا دي زي ما كانت عشان النسخة بتاعتك تفهمها
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
 
-    // 2. إعداد إعدادات التوقيع (Signing Configs)
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            storeFile = file(keystoreProperties.getProperty("storeFile"))
+            storePassword = keystoreProperties.getProperty("storePassword")
         }
     }
 
     defaultConfig {
-        applicationId = "com.example.remaking_booking_app_trail2"
+        applicationId = "com.hanzbthalk.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        
+     versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // تمرير الـ API Key للمانيفست
+        manifestPlaceholders["MAPS_API_KEY"] = secretsProperties.getProperty("MAPS_API_KEY") ?: ""
     }
-
+    
     buildTypes {
         release {
-            // السطر اللي بيربط المفتاح الرسمي
             signingConfig = signingConfigs.getByName("release")
-            
-            // تأكد إن السطرين دول كدة بالظبط:
-            isMinifyEnabled = false      // قفل تصغير الكود
-            isShrinkResources = false    // قفل مسح الصور غير المستخدمة (ده اللي مسبب المشكلة)
-            
+            isMinifyEnabled = false      
+            isShrinkResources = false    
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

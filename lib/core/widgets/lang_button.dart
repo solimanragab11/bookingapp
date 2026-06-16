@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/language/cubit/language_cubit.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/language/cubit/language_cubit.dart';
 
 class LanguageToggleButton extends StatelessWidget {
   const LanguageToggleButton({super.key});

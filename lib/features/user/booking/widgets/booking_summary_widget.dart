@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class BookingSummaryWidget extends StatelessWidget {
   final Set<String> selectedBookingSlots;
@@ -73,19 +73,21 @@ class BookingSummaryWidget extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(top: 15), // ظبطت المسافات شوية
+          margin: const EdgeInsets.only(top: 15),
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: ColorManager.wasabi.withOpacity(0.6),
+            color: ColorManager.cardSurface.withOpacity(0.4),
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: ColorManager.wasabi.withOpacity(0.2)),
+            border: Border.all(
+              color: ColorManager.emeraldGreen.withOpacity(0.25),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(
                 Icons.info_outline,
-                color: ColorManager.creasedKhaki,
+                color: ColorManager.egyptianEarth,
                 size: 20,
               ),
               const SizedBox(width: 10),

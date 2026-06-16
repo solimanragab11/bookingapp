@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class PaymentSummarySection extends StatelessWidget {
   final double totalPrice;

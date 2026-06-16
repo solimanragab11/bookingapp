@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/dashboard_states_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/dashboard_states_model.dart';
 import 'stat_card_item.dart';
 import 'revenue_comparison_chart.dart';
 

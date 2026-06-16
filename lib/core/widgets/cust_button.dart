@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
 
 class CustButton extends StatefulWidget {
   const CustButton({
@@ -10,6 +10,7 @@ class CustButton extends StatefulWidget {
     required this.onTap,
     required this.size,
     required this.lable,
+    this.isLoading = false,
   });
 
   final double h;
@@ -18,6 +19,7 @@ class CustButton extends StatefulWidget {
   final VoidCallback? onTap;
   final String size;
   final String lable;
+  final bool isLoading;
 
   @override
   State<CustButton> createState() => _CustButtonState();
@@ -28,10 +30,12 @@ class _CustButtonState extends State<CustButton>
   double _scale = 1.0; // ده اللي هيتحكم في حجم الزرار
 
   void _onTapDown(TapDownDetails details) {
+    if (widget.isLoading) return;
     setState(() => _scale = 0.92); // بيصغر لـ 92% من حجمه لما تلمسه
   }
 
   void _onTapUp(TapUpDetails details) {
+    if (widget.isLoading) return;
     setState(() => _scale = 1.0); // يرجع لحجمه الطبيعي
   }
 
@@ -55,8 +59,11 @@ class _CustButtonState extends State<CustButton>
       child: GestureDetector(
         onTapDown: _onTapDown,
         onTapUp: _onTapUp,
-        onTapCancel: () => setState(() => _scale = 1.0),
-        onTap: widget.onTap,
+        onTapCancel: () {
+          if (widget.isLoading) return;
+          setState(() => _scale = 1.0);
+        },
+        onTap: widget.isLoading ? null : widget.onTap,
         child: AnimatedScale(
           // الودجت السحرية للأنيميشن
           scale: _scale,
@@ -81,14 +88,23 @@ class _CustButtonState extends State<CustButton>
               ],
             ),
             child: Center(
-              child: Text(
-                widget.lable,
-                style: TextStyleMangare.headingStyle.copyWith(
-                  color: Colors.white,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: widget.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      widget.lable,
+                      style: TextStyleMangare.headingStyle.copyWith(
+                        color: Colors.white,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class PlaceScheduleHeader extends StatelessWidget {
   final String placeName;
@@ -30,9 +31,9 @@ class PlaceScheduleHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const Text(
-                  'إدارة الحجوزات والملاعب',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                Text(
+                  context.tr('manage_bookings_and_fields', defaultValue: 'Manage Bookings & Fields'),
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
                 ),
               ],
             ),

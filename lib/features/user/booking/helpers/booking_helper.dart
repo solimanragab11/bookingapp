@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/payment/payment_service.dart';
-import 'package:remaking_booking_app_trail2/features/user/payment/payment_web_view.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_cubit.dart';
+import 'package:hanzbthalk/features/user/payment/payment_service.dart';
+import 'package:hanzbthalk/features/user/payment/payment_web_view.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
 
 mixin BookingHelper {
   // دالة مساعدة لتنسيق الوقت

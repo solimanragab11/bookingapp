@@ -1,7 +1,7 @@
 // featurse/user/place_details/cubit/place_details_cubit.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/user/place_details/cubit/place_details_stats.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/features/user/place_details/cubit/place_details_stats.dart';
 
 class PlaceDetailsCubit extends Cubit<PlaceDetailsStats> {
   // بنبدأ الـ Cubit وبنديله الـ PlaceModel اللي جاي من الـ Home

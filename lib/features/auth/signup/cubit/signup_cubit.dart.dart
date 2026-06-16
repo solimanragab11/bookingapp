@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/auth/repo/auth_repo.dart';
-import 'package:remaking_booking_app_trail2/features/auth/signup/cubit/signup_state.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/features/auth/repo/auth_repo.dart';
+import 'package:hanzbthalk/features/auth/signup/cubit/signup_state.dart';
 
 class SignUpCubit extends Cubit<SignUpState> {
   final AuthRepo _authRepo;
@@ -14,15 +15,16 @@ class SignUpCubit extends Cubit<SignUpState> {
   // Stored here so verifyOTP can access it without relying on the UI
   // passing it back — eliminates the force-unwrap crash risk.
   String? _verificationId;
+  String? get verificationId => _verificationId;
 
-  SignUpCubit(this._authRepo) : super( SignUpInitial());
+  SignUpCubit(this._authRepo) : super(SignUpInitial());
 
   // ---------------------------------------------------------------------------
   // Send OTP (registration flow)
   // ---------------------------------------------------------------------------
 
   Future<void> sendOTP(String phoneNumber) async {
-    emit( SignUpLoading());
+    emit(SignUpLoading());
 
     await _authRepo.sendOTP(
       phoneNumber: phoneNumber,
@@ -45,11 +47,11 @@ class SignUpCubit extends Cubit<SignUpState> {
   }) async {
     if (_verificationId == null) {
       // Guard: should never happen in normal flow, but let's be explicit.
-      emit( SignUpError('otpSessionExpired'));
+      emit(SignUpError('otpSessionExpired'));
       return;
     }
 
-    emit( SignUpLoading());
+    emit(SignUpLoading());
     try {
       await _authRepo.verifyOTP(
         verificationId: _verificationId!,
@@ -59,9 +61,12 @@ class SignUpCubit extends Cubit<SignUpState> {
       );
       _cancelTimer();
       emit(SignUpSuccess(username));
+    } on DatabaseException catch (e) {
+      debugPrint('[SignUpCubit] verifyOTP database error: ${e.message}');
+      emit(SignUpError(e.message));
     } catch (e) {
       debugPrint('[SignUpCubit] verifyOTP error: $e');
-      emit( SignUpError('otpError'));
+      emit(SignUpError('otpError'));
     }
   }
 
@@ -82,14 +87,14 @@ class SignUpCubit extends Cubit<SignUpState> {
     _cancelTimer();
     _remainingSeconds = 60;
 
-    _resendTimer = Timer.periodic( Duration(seconds: 1), (timer) {
+    _resendTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isClosed) {
         timer.cancel();
         return;
       }
       if (_remainingSeconds == 0) {
         timer.cancel();
-        emit( SignUpResendEnabled());
+        emit(SignUpResendEnabled());
       } else {
         _remainingSeconds--;
         emit(SignUpResendCountdown(_remainingSeconds));
@@ -109,7 +114,7 @@ class SignUpCubit extends Cubit<SignUpState> {
   void reset() {
     _cancelTimer();
     _verificationId = null;
-    emit( SignUpInitial());
+    emit(SignUpInitial());
   }
 
   @override

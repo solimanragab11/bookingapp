@@ -1,24 +1,23 @@
 import 'dart:io';
+import 'dart:ui'; // 🌟 مهم عشان الـ ImageFilter للتمويه (Blur) بتاع الصاروخ
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/show_success_dialog.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/snackbar_utils.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_state.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/app_bar.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_stepper_controls.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/basic_info_step.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/search_bar/add_place_searchbar.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/sub_places_step.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/media_step.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/loading_overlay.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_cubit.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_state.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/app_bar.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/add_place_stepper_controls.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/basic_info_step.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/search_bar/add_place_searchbar.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/sub_places_step.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/media_step.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/loading_overlay.dart';
 
 class AddPlaceScreen extends StatefulWidget {
   final PlaceModel? placeToEdit; // لو null يبقى إضافة، لو موجود يبقى تعديل
@@ -75,6 +74,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     _minChargeController.text =
         widget.placeToEdit?.minimumCharge?.toString() ?? "";
     _selectedAddress = widget.placeToEdit?.locationUrl;
+
     if (widget.placeToEdit != null) {
       context.read<AddPlaceCubit>().loadOwnerForEdit(
         widget.placeToEdit!.ownerId,
@@ -85,21 +85,15 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
         widget.placeToEdit!.longitude,
       );
 
-      // تحويل الـ SubPlaces لـ Maps عشان تتوافق مع الـ UI الحالي
-      for (var sp in widget.placeToEdit!.subPlaces) {
-        _subPlaces.add({
-          'playersNumber': sp.playersNumber.toString(),
-          'price': sp.pricePerHour.toString(),
-          'image': sp.imageUrl, // هنا ممكن تكون URL أو File path
-          'id': sp.id,
-        });
-      }
+      // جلب الـ SubPlaces الحقيقية من الداتابيز بناءً على subPlacesIds.
+      // الناتج هيوصل عن طريق state.subPlaces ويتم تعبية _subPlaces
+      // في الـ BlocListener أسفل (_populateSubPlacesFromState).
+      context.read<AddPlaceCubit>().loadSubPlacesForEdit(
+        widget.placeToEdit!.subPlacesIds,
+      );
     }
-
-    // ─── Step 3 Auto-fill ─────────────────
-    // ملاحظة: الصور القديمة URLs، والجديدة Files. الـ UI لازم يتعامل مع النوعين.
-    // للتبسيط، هنضيف الـ paths القديمة في لستة مؤقتة
   }
+
   // ─── Map ──────────────────────────────────────────────────────────────────
 
   Future<void> _openMapSelection() async {
@@ -118,7 +112,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     });
   }
 
-  // ─── BlocListener ─────────────────────────────────────────────────────────
+  // ─── BlocListener: Errors / Success ────────────────────────────────────────
 
   bool _listenWhen(AddPlaceState prev, AddPlaceState curr) {
     final newError =
@@ -129,19 +123,15 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
 
   void _handleCubitListener(BuildContext context, AddPlaceState state) {
     if (state.isSuccess) {
-      // 1. اعرض رسالة نجاح أو اقفل الشاشة
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Success! Place saved successfully.')),
       );
 
-      // 2. 🔥 صفر الفلاجز عشان الستيت متبقاش معلقة على true علطول
       context.read<AddPlaceCubit>().resetStatusFlags();
-
-      Navigator.pop(context); // أو الانتقال للـ Dashboard
+      Navigator.pop(context);
     }
 
     if (state.errorMessage != null) {
-      // 1. دلوقتي الـ Error هيفضل ثابت وهتلقطه هنا وتشوف المشكلة الحقيقية فين!
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.errorMessage!),
@@ -149,9 +139,33 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
         ),
       );
 
-      // 2. 🔥 صَفره بعد ما عرضته للمنتصف
       context.read<AddPlaceCubit>().resetStatusFlags();
     }
+  }
+
+  // ─── BlocListener: Populate _subPlaces once loaded (Edit mode) ─────────────
+
+  bool _subPlacesListenWhen(AddPlaceState prev, AddPlaceState curr) {
+    return prev.subPlaces != curr.subPlaces && curr.subPlaces.isNotEmpty;
+  }
+
+  void _populateSubPlacesFromState(BuildContext context, AddPlaceState state) {
+    setState(() {
+      _subPlaces.clear();
+      final subPlaceUrls = <String>{};
+      for (final sp in state.subPlaces) {
+        _subPlaces.add({
+          'playersNumber': sp.playersNumber.toString(),
+          'price': sp.pricePerHour.toString(),
+          'image': sp.imageUrl, // ممكن تكون URL أو File path
+          'id': sp.id,
+        });
+        if (sp.imageUrl.isNotEmpty) {
+          subPlaceUrls.add(sp.imageUrl);
+        }
+      }
+      _mainImages.removeWhere((img) => subPlaceUrls.contains(img.toString()));
+    });
   }
 
   // ─── Step navigation ──────────────────────────────────────────────────────
@@ -162,143 +176,139 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
 
     // ─── STEP 1: Basic Info & Owner Validation ───
     if (_currentStep == 0) {
-      final owner = cubit.state.selectedOwner;
-      if (owner == null) {
-        SnackBarUtils.showErrorSnackBar(
-          context,
-          context.tr('Please search and select an owner'),
-        );
-        return;
-      }
-      final isFormValid = _step1FormKey.currentState?.validate() ?? false;
-      if (!isFormValid) return;
-      if (_selectedCategory == null) {
-        SnackBarUtils.showErrorSnackBar(
-          context,
-          context.tr('Please select a category'),
-        );
-        return;
-      }
+      if (!_validateStep1(cubit)) return;
       setState(() => _currentStep++);
       return;
     }
 
     // ─── STEP 2: SubPlaces & Location Validation ───
     if (_currentStep == 1) {
-      if (_subPlaces.isEmpty) {
-        SnackBarUtils.showErrorSnackBar(
-          context,
-          context.tr('Please add at least one subplace'),
-        );
-        return;
-      }
-      // Validation Loop for SubPlaces
-      for (int i = 0; i < _subPlaces.length; i++) {
-        final sp = _subPlaces[i];
-        final price = sp['price']?.toString().trim() ?? '';
-        final players = sp['playersNumber']?.toString().trim() ?? '';
-
-        if (price.isEmpty || players.isEmpty) {
-          SnackBarUtils.showErrorSnackBar(
-            context,
-            '${context.tr('Please fill price and players for field')} #${i + 1}',
-          );
-          return;
-        }
-      }
+      if (!_validateStep2()) return;
       setState(() => _currentStep++);
       return;
     }
 
     // ─── STEP 3: Media & Final Save/Update ───
     if (_currentStep == 2) {
-      // التأكد إن فيه صور (سواء قديمة موجودة أو جديدة مضافة)
-      if (_mainImages.isEmpty &&
-          (isEditMode && widget.placeToEdit!.images.isEmpty)) {
+      await _handleFinalStep(isEditMode, cubit);
+    }
+  }
+
+  bool _validateStep1(AddPlaceCubit cubit) {
+    final owner = cubit.state.selectedOwner;
+    if (owner == null) {
+      SnackBarUtils.showErrorSnackBar(
+        context,
+        context.tr('Please search and select an owner'),
+      );
+      return false;
+    }
+
+    final isFormValid = _step1FormKey.currentState?.validate() ?? false;
+    if (!isFormValid) return false;
+
+    if (_selectedCategory == null) {
+      SnackBarUtils.showErrorSnackBar(
+        context,
+        context.tr('Please select a category'),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _validateStep2() {
+    if (_subPlaces.isEmpty) {
+      SnackBarUtils.showErrorSnackBar(
+        context,
+        context.tr('Please add at least one subplace'),
+      );
+      return false;
+    }
+
+    for (int i = 0; i < _subPlaces.length; i++) {
+      final sp = _subPlaces[i];
+      final price = sp['price']?.toString().trim() ?? '';
+      final players = sp['playersNumber']?.toString().trim() ?? '';
+
+      if (price.isEmpty || players.isEmpty) {
         SnackBarUtils.showErrorSnackBar(
           context,
-          context.tr('Please add at least one main photo'),
+          '${context.tr('Please fill price and players for field')} #${i + 1}',
         );
-        return;
-      }
-
-      final owner = cubit.state.selectedOwner;
-      if (owner == null) {
-        SnackBarUtils.showErrorSnackBar(
-          context,
-          context.tr('Owner not selected. Please go back to step 1.'),
-        );
-        setState(() => _currentStep = 0);
-        return;
-      }
-
-      // تجهيز لستة الـ SubPlaces (تحويل الـ Map لـ Model)
-      final subPlacesModels = _subPlaces.asMap().entries.map((entry) {
-        final i = entry.key;
-        final sp = entry.value;
-
-        // هنا الذكاء: لو الصورة File هناخد الـ path، لو String (URL) هينزل زي ما هو
-        String finalImgPath = '';
-        if (sp['image'] is File) {
-          finalImgPath = (sp['image'] as File).path;
-        } else if (sp['image'] is String) {
-          finalImgPath = sp['image'] as String;
-        }
-
-        return SubPlace(
-          id: sp['id'] ?? 'sub_$i', // الحفاظ على الـ ID القديم في التعديل
-          imageUrl: finalImgPath,
-          pricePerHour: double.tryParse(sp['price'].toString()) ?? 0.0,
-          playersNumber: int.tryParse(sp['playersNumber'].toString()) ?? 0,
-        );
-      }).toList();
-
-      final opening = _isOpen24_7 ? '00:00 AM' : _openingTime;
-      final closing = _isOpen24_7 ? '00:00 AM' : _closingTime;
-
-      // تجميع الـ Object النهائي
-      // لو إحنا في EditMode بنستخدم copyWith على الـ placeToEdit عشان نحافظ على الـ ID والحقول الثابتة
-      // تجميع الـ Object النهائي
-      final finalPlaceData =
-          (isEditMode ? widget.placeToEdit! : cubit.state.place).copyWith(
-            name: _nameController.text.trim(),
-            description: _descController.text.trim(),
-            type: _selectedCategory ?? '',
-            ownerId: owner.id,
-            openingTime: opening,
-            closingTime: closing,
-            latitude:
-                _selectedLocation?.latitude ??
-                (isEditMode ? widget.placeToEdit!.latitude : 0.0),
-            longitude:
-                _selectedLocation?.longitude ??
-                (isEditMode ? widget.placeToEdit!.longitude : 0.0),
-            locationUrl:
-                _selectedAddress ??
-                (isEditMode ? widget.placeToEdit!.locationUrl : ''),
-
-            // 🔥 التعديل السحري هنا:
-            // بنشوف كل عنصر في الـ _mainImages، لو File بناخد مساره، ولو String (رابط قديم) بينزل زي ما هو
-            images: _mainImages.map((img) {
-              if (img is File) {
-                return img.path;
-              }
-              return img.toString(); // هيرجع الـ URL القديم زي ما هو
-            }).toList(),
-
-            subPlaces: subPlacesModels,
-            minimumCharge: _minChargeController.text.trim().isNotEmpty
-                ? double.tryParse(_minChargeController.text.trim())
-                : null,
-          ); // تنفيذ العملية بناءً على الحالة
-      if (isEditMode) {
-        // ميثود في الكيوبيت مخصصة للتحديث
-        await cubit.updateExistingPlace(finalPlaceData);
-      } else {
-        cubit.updatePlace(finalPlaceData);
-        await cubit.savePlace();
+        return false;
       }
     }
+
+    return true;
+  }
+
+  Future<void> _handleFinalStep(bool isEditMode, AddPlaceCubit cubit) async {
+    if (_mainImages.isEmpty &&
+        (isEditMode && widget.placeToEdit!.images.isEmpty)) {
+      SnackBarUtils.showErrorSnackBar(
+        context,
+        context.tr('Please add at least one main photo'),
+      );
+      return;
+    }
+
+    final owner = cubit.state.selectedOwner;
+    if (owner == null) {
+      SnackBarUtils.showErrorSnackBar(
+        context,
+        context.tr('Owner not selected. Please go back to step 1.'),
+      );
+      setState(() => _currentStep = 0);
+      return;
+    }
+
+    final finalPlaceData = _buildFinalPlaceData(isEditMode, cubit, owner.id);
+
+    // _subPlaces (raw List<Map>) يتم تمريرها كما هي للـ Cubit/Repo، اللي
+    // مسؤول عن بناء SubPlaceModel/SlotsModel عبر subplace_builder.dart
+    // والحفاظ على slotsIds الموجودة (في حالة التعديل).
+    if (isEditMode) {
+      await cubit.updateExistingPlace(finalPlaceData, _subPlaces);
+    } else {
+      cubit.updatePlace(finalPlaceData);
+      await cubit.savePlace(_subPlaces);
+    }
+  }
+
+  PlaceModel _buildFinalPlaceData(
+    bool isEditMode,
+    AddPlaceCubit cubit,
+    String ownerId,
+  ) {
+    final opening = _isOpen24_7 ? '00:00 AM' : _openingTime;
+    final closing = _isOpen24_7 ? '00:00 AM' : _closingTime;
+
+    return (isEditMode ? widget.placeToEdit! : cubit.state.place).copyWith(
+      name: _nameController.text.trim(),
+      description: _descController.text.trim(),
+      type: _selectedCategory ?? '',
+      ownerId: ownerId,
+      openingTime: opening,
+      closingTime: closing,
+      latitude:
+          _selectedLocation?.latitude ??
+          (isEditMode ? widget.placeToEdit!.latitude : 0.0),
+      longitude:
+          _selectedLocation?.longitude ??
+          (isEditMode ? widget.placeToEdit!.longitude : 0.0),
+      locationUrl:
+          _selectedAddress ??
+          (isEditMode ? widget.placeToEdit!.locationUrl : ''),
+      images: _mainImages.map((img) {
+        if (img is File) return img.path;
+        return img.toString();
+      }).toList(),
+      minimumCharge: _minChargeController.text.trim().isNotEmpty
+          ? double.tryParse(_minChargeController.text.trim())
+          : null,
+    );
   }
 
   void _onStepCancel() {
@@ -316,20 +326,46 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       body: Stack(
         children: [
           BackGround(h: size.height, w: size.width),
+
           SafeArea(
-            child: BlocListener<AddPlaceCubit, AddPlaceState>(
-              listenWhen: _listenWhen,
-              listener: _handleCubitListener,
+            child: MultiBlocListener(
+              listeners: [
+                BlocListener<AddPlaceCubit, AddPlaceState>(
+                  listenWhen: _listenWhen,
+                  listener: _handleCubitListener,
+                ),
+                BlocListener<AddPlaceCubit, AddPlaceState>(
+                  listenWhen: _subPlacesListenWhen,
+                  listener: _populateSubPlacesFromState,
+                ),
+              ],
               child: Column(
                 children: [
-                  CustAppBar(width: size.width),
+                  CustAppBar(
+                    width: size.width,
+                    onTap: () => context.read<AddPlaceCubit>().deletePlace(
+                      widget.placeToEdit!,
+                    ),
+                  ),
                   const AddPlaceSearchBar(),
                   _buildStepperContainer(context),
                 ],
               ),
             ),
           ),
+
+          // الـ LoadingOverlay العادي بتاعك (لو ملوش علاقة بالنسبة المئوية)
           const LoadingOverlay(),
+
+          // 🚀 السهم الصاروخي ينطلق هنا و يغطي الشاشة بالكامل أثناء الرفع!
+          BlocBuilder<AddPlaceCubit, AddPlaceState>(
+            // بنفلتر الـ build عشان ميتبنيش غير لو فيه تغيير في النسبة المئوية بس
+            buildWhen: (previous, current) =>
+                previous.uploadProgress != current.uploadProgress,
+            builder: (context, state) {
+              return RocketArrowUploadOverlay(progress: state.uploadProgress);
+            },
+          ),
         ],
       ),
     );
@@ -437,14 +473,150 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
           onAddImages: () async {
             final images = await context.read<AddPlaceCubit>().pickMainImages();
             if (images.isNotEmpty && mounted) {
-              setState(
-                () => _mainImages.addAll(images),
-              ); // هتضيف الـ Files عادي جداً
+              setState(() => _mainImages.addAll(images));
             }
           },
           onRemoveImage: (index) => setState(() => _mainImages.removeAt(index)),
         ),
       ),
     ];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🚀 Rocket Arrow Overlay Widget & Painter
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RocketArrowUploadOverlay extends StatelessWidget {
+  final double progress;
+
+  const RocketArrowUploadOverlay({super.key, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    if (progress <= 0 || progress >= 100) return const SizedBox.shrink();
+
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final Color themeColor = const Color(0xFFB36334);
+
+    final double progressFraction = (progress / 100).clamp(0.0, 1.0);
+
+    final double startPosition = -180.0;
+    final double endPosition = screenHeight + 50;
+
+    final double currentBottomPosition =
+        startPosition + (progressFraction * (endPosition - startPosition));
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(color: Colors.black.withOpacity(0.45)),
+          ),
+        ),
+
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: (currentBottomPosition + 150).clamp(0.0, screenHeight),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  themeColor.withOpacity(0.5),
+                  Colors.orange.withOpacity(0.2),
+                  Colors.white.withOpacity(0.05),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.2, 0.8, 1.0],
+              ),
+            ),
+          ),
+        ),
+
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          bottom: currentBottomPosition,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: themeColor.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    "${progress.toStringAsFixed(0)}% Uploading...",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: 120,
+                  height: 150,
+                  child: CustomPaint(
+                    painter: RocketArrowPainter(color: themeColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class RocketArrowPainter extends CustomPainter {
+  final Color color;
+  RocketArrowPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+
+    double shaftWidth = size.width * 0.35;
+    double headHeight = size.height * 0.35;
+
+    path.moveTo(size.width / 2, 0);
+    path.lineTo(size.width, headHeight);
+    path.lineTo(size.width / 2 + shaftWidth / 2, headHeight);
+
+    path.lineTo(size.width / 2 + shaftWidth / 2, size.height);
+    path.lineTo(size.width / 2 - shaftWidth / 2, size.height);
+    path.lineTo(size.width / 2 - shaftWidth / 2, headHeight);
+
+    path.lineTo(0, headHeight);
+    path.close();
+
+    canvas.drawShadow(path, Colors.black, 6.0, true);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant RocketArrowPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }

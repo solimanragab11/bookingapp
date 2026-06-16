@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
 
 class ErrorPlacesView extends StatelessWidget {
   final String message;
@@ -9,7 +10,7 @@ class ErrorPlacesView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        message,
+        context.tr(message),
         style: const TextStyle(color: Colors.redAccent),
       ),
     );

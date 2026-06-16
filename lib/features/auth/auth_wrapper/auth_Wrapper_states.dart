@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();

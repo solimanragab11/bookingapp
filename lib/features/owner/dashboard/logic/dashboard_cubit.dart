@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/features/owner/data/data_sources/firestore_owner_service.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/db/firestore_owner_service.dart';
 import 'dashboard_state.dart';
 
 class DashboardCubit extends Cubit<DashboardState> {

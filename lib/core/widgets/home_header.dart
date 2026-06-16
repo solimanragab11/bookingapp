@@ -1,11 +1,20 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/lang_button.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/brand_logo.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key});
+  final Key? menuKey;
+  final Key? logoKey;
+  final Key? bookingsKey;
+
+  const HomeHeader({
+    super.key,
+    this.menuKey,
+    this.logoKey,
+    this.bookingsKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +26,7 @@ class HomeHeader extends StatelessWidget {
         children: [
           // فتح الـ Drawer عند الضغط على أيقونة المنيو (بديل للأيقونات الكتيرة)
           IconButton(
+            key: menuKey,
             icon: Icon(
               Icons.menu_rounded,
               color: ColorManager.wasabi,
@@ -25,18 +35,44 @@ class HomeHeader extends StatelessWidget {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
 
-          Text(
-            context.tr('appName'),
-            style: TextStyleMangare.headingStyle.copyWith(
-              fontSize: w * 0.065,
-              color: ColorManager.wasabi,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
+          BrandLogo(
+            key: logoKey,
+            fontSize: w * 0.065,
+            letterSpacing: 1.2,
           ),
 
-          // زرار اللغة الزجاجي
-          const LanguageToggleButton(),
+          // زرار حجوزاتي الزجاجي بدلاً من اللغة
+          GestureDetector(
+            key: bookingsKey,
+            onTap: () {
+              Navigator.pushNamed(context, Routes.myBookings);
+            },
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: ColorManager.wasabi.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: ColorManager.wasabi.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.history_rounded,
+                      color: ColorManager.wasabi,
+                      size: w * 0.055,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

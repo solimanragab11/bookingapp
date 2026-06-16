@@ -1,18 +1,22 @@
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 class AddPlaceState {
   final PlaceModel place;
+  final List<SubPlaceModel> subPlaces;
   final bool isLoading;
   final String? errorMessage;
   final bool isSuccess;
   final List<UserModel> searchResults;
   final UserModel? selectedOwner;
-
-  const AddPlaceState({
+  final double uploadProgress;
+  AddPlaceState({
     required this.place,
+    required this.subPlaces,
     this.isLoading = false,
     this.errorMessage,
+    this.uploadProgress = 0,
     this.isSuccess = false,
     this.searchResults = const [],
     this.selectedOwner,
@@ -29,8 +33,12 @@ class AddPlaceState {
     bool? isSuccess,
     List<UserModel>? searchResults,
     UserModel? Function()? selectedOwner,
+    double? uploadProgress,
+    List<SubPlaceModel>? subPlaces,
   }) {
     return AddPlaceState(
+      subPlaces: subPlaces ?? this.subPlaces,
+      uploadProgress: uploadProgress ?? this.uploadProgress,
       place: place ?? this.place,
       isLoading: isLoading ?? this.isLoading,
       // ← CRITICAL: always resolve via the wrapper; never carry stale errors
@@ -57,8 +65,9 @@ class AddPlaceState {
         locationUrl: '',
         openingTime: '09:00 AM',
         closingTime: '11:00 PM',
-        subPlaces: [],
+        subPlacesIds: const [],
       ),
+      subPlaces: const [],
       searchResults: const [],
       selectedOwner: null,
     );

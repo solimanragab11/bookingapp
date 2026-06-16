@@ -1,5 +1,5 @@
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class ManageBookingPlaceState {}
 

@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/repo/global_dashboard_repository.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/repo/global_dashboard_repository.dart';
 import 'global_dashboard_state.dart';
 
 class GlobalDashboardCubit extends Cubit<GlobalDashboardState> {

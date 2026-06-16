@@ -1,6 +1,7 @@
-import 'package:remaking_booking_app_trail2/core/models/offer.dart';
+import 'package:equatable/equatable.dart';
+import 'package:hanzbthalk/core/models/offer_model.dart';
 
-class BookingModel {
+class BookingModel extends Equatable {
   final String id; // Unique ID for the booking
   final String userId;
   final String subPlaceId; // ID of the specific SubPlace being booked
@@ -12,12 +13,12 @@ class BookingModel {
   final double
   requiredDeposit; // Minimum deposit required based on hours booked
   final bool isOffer;
-  final Offer? offer;
+  final OfferModel? offer;
   final double priceAfterOffer;
   final String placeId;
   final bool isCash;
 
-  BookingModel({
+  const BookingModel({
     required this.bookedBy,
     required this.id,
     required this.userId,
@@ -50,7 +51,7 @@ class BookingModel {
       paidAmount: (json['paidAmount'] as num?)?.toDouble() ?? 0.0,
       requiredDeposit: (json['requiredDeposit'] as num?)?.toDouble() ?? 0.0,
       isOffer: json['isOffer'] ?? false,
-      offer: json['offer'] != null ? Offer.fromJson(json['offer']) : null,
+      offer: json['offer'] != null ? OfferModel.fromJson(json['offer']) : null,
       priceAfterOffer: (json['priceAfterOffer'] as num?)?.toDouble() ?? 0.0,
       placeId: json['placeId'] ?? '',
       isCash: json['isCash'] ?? false,
@@ -76,4 +77,22 @@ class BookingModel {
       "isCash": isCash,
     };
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        userId,
+        subPlaceId,
+        bookedBy,
+        createdAt,
+        timeSlots,
+        totalPrice,
+        paidAmount,
+        requiredDeposit,
+        isOffer,
+        offer,
+        priceAfterOffer,
+        placeId,
+        isCash,
+      ];
 }

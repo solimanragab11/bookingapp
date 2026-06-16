@@ -1,10 +1,10 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/cross_line_painter.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/booking_id_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/cross_line_painter.dart';
 
 class BookingSlotsGrid extends StatelessWidget {
   // نصوص الرسائل والـ Status
@@ -80,7 +80,7 @@ class BookingSlotsGrid extends StatelessWidget {
         color: ColorManager.cardSurface.withOpacity(0.4),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: ColorManager.creasedKhaki.withOpacity(0.1),
+          color: ColorManager.emeraldGreen.withOpacity(0.25),
           width: 1.5,
         ),
       ),
@@ -144,14 +144,14 @@ class BookingSlotsGrid extends StatelessWidget {
                     : (isPast
                           ? Colors.red.withOpacity(0.4)
                           : (isSelected
-                                ? ColorManager.wasabi
+                                ? ColorManager.egyptianEarth
                                 : ColorManager.noirDeVigne.withOpacity(0.6))),
                 border: Border.all(
                   color: isPast
                       ? Colors.redAccent
                       : (isSelected
-                            ? ColorManager.wasabi
-                            : ColorManager.creasedKhaki.withOpacity(0.2)),
+                            ? ColorManager.egyptianEarth
+                            : ColorManager.emeraldGreen.withOpacity(0.35)),
                 ),
               ),
               child: Stack(
@@ -162,11 +162,9 @@ class BookingSlotsGrid extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: w * 0.032,
-                      color: (isPast || isBookedByOthers)
+                      color: (isPast || isBookedByOthers || isSelected)
                           ? Colors.white
-                          : (isSelected
-                                ? ColorManager.noirDeVigne
-                                : ColorManager.creasedKhaki),
+                          : ColorManager.creasedKhaki,
                       fontWeight: (isPast || isSelected)
                           ? FontWeight.bold
                           : FontWeight.w500,

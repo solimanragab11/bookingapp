@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:remaking_booking_app_trail2/core/models/dashboard_states_model.dart';
+import 'package:hanzbthalk/core/models/dashboard_states_model.dart';
 
 abstract class DashboardState extends Equatable {
   const DashboardState();

@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/user/user_bookings/cubit/user_bookings_status.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/db/admin_services.dart';
+import 'package:hanzbthalk/features/user/user_bookings/cubit/user_bookings_status.dart';
 
 class UserBookingsCubit extends Cubit<UserBookingsState> {
   final BookingService _service;
@@ -27,7 +29,17 @@ class UserBookingsCubit extends Cubit<UserBookingsState> {
           final PlaceModel placeData =
               await _service.getPlaceById(placeId) as PlaceModel;
           booking['placeInfo'] = placeData.toJson(); // دمج البيانات هنا
-        } else {}
+        }
+        
+        final subPlaceId = booking['subPlaceId'];
+        if (subPlaceId != null) {
+          final subPlaceData =
+              await getIt<AdminService>().getSubPlaceById(subPlaceId);
+          if (subPlaceData != null) {
+            booking['subPlaceInfo'] = subPlaceData.toJson();
+          }
+        }
+        
         enrichedBookings.add(booking);
       }
 

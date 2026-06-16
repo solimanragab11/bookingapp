@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/db/booking_analytics_service.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class BarchartCust extends StatelessWidget {
   const BarchartCust({super.key, required this.places});

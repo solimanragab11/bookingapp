@@ -1,8 +1,8 @@
 // lib/features/user/home/cubit/home_cubit.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_stats.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_home/repo/admin_home_repo.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/features/admin/admin_home/logic/admin_home_stats.dart';
+import 'package:hanzbthalk/features/admin/admin_home/repo/admin_home_repo.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 class AdminHomeCubit extends Cubit<AdminHomeStats> {
   final AdminHomeRepo _homeRepo;

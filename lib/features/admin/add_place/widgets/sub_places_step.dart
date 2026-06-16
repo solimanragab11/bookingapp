@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_text_field.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/sub_places_list_section.dart.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/add_place_text_field.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/sub_places_list_section.dart.dart';
 
 class SubPlacesStep extends StatelessWidget {
   final String? selectedCategory;
   final TextEditingController minChargeController;
   final List<Map<String, dynamic>> subPlaces;
   final String? selectedAddress;
+
   /// Opens map via named route; parent handles [Navigator.pushNamed] and state.
   final Future<void> Function() onOpenMapSelection;
   final VoidCallback onAddSubPlace;
@@ -86,4 +87,3 @@ class SubPlacesStep extends StatelessWidget {
     );
   }
 }
-

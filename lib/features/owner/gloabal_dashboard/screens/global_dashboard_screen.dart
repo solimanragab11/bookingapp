@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
 
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/logic/global_dashboard_state.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/widgets/barchart.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/widgets/places_breakdown.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/widgets/summary_card.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/logic/global_dashboard_state.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/barchart.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/places_breakdown.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/summary_card.dart';
+
+import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
 class GlobalDashboardScreen extends StatelessWidget {
   const GlobalDashboardScreen({super.key});
@@ -24,6 +28,25 @@ class GlobalDashboardScreen extends StatelessWidget {
           SafeArea(
             child: BlocBuilder<GlobalDashboardCubit, GlobalDashboardState>(
               builder: (context, state) {
+                final currentUser = context.read<AuthCubit>().currentUser;
+                final canViewAnalytics = currentUser != null && PermissionService.can(currentUser, 'viewAnalytics');
+
+                if (!canViewAnalytics) {
+                  return Column(
+                    children: [
+                      _buildAppBar(context),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            context.tr('permission_denied', defaultValue: 'Permission Denied'),
+                            style: const TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
                 if (state is GlobalDashboardLoading) {
                   return const Center(
                     child: CircularProgressIndicator(
@@ -44,9 +67,9 @@ class GlobalDashboardScreen extends StatelessWidget {
                             children: [
                               // 1. ملخص المالك (إجمالي كل الملاعب)
                               _buildGlobalSummary(
+                                context,
                                 report.totalRevenue,
-                                report
-                                    .totalBookingCount, // استبدلنا الساعات بعدد الحجوزات أو ممكن تعدلها
+                                report.totalBookingCount,
                               ),
                               const SizedBox(height: 24),
 
@@ -90,9 +113,9 @@ class GlobalDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
-          const Text(
-            "لوحة تحكم الملاعب",
-            style: TextStyle(
+          Text(
+            context.tr('global_dashboard_title', defaultValue: 'Places Dashboard'),
+            style: const TextStyle(
               color: ColorManager.wasabi,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -103,19 +126,19 @@ class GlobalDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGlobalSummary(double revenue, int totalBookings) {
+  Widget _buildGlobalSummary(BuildContext context, double revenue, int totalBookings) {
     return Row(
       children: [
         SummaryCard(
-          title: "إجمالي الدخل",
-          value: "${revenue.toInt()} EGP",
+          title: context.tr('total_income', defaultValue: 'Total Income'),
+          value: "${revenue.toInt()} ${context.tr('egp')}",
           color: Colors.amber,
           icon: Icons.monetization_on,
         ),
         const SizedBox(width: 12),
         SummaryCard(
-          title: "إجمالي الحجوزات",
-          value: "$totalBookings حجز",
+          title: context.tr('total_bookings', defaultValue: 'Total Bookings'),
+          value: "$totalBookings ${context.tr('bookings_count_unit', defaultValue: 'Bookings')}",
           color: ColorManager.wasabi,
           icon: Icons.event_available,
         ),

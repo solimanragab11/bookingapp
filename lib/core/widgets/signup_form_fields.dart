@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class SignUpFormFields extends StatelessWidget {
   final GlobalKey<FormState> formKey;

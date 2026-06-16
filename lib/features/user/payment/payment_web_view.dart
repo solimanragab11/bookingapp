@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/payment/widgets/payment_status_dialog.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_cubit.dart';
+import 'package:hanzbthalk/features/user/payment/widgets/payment_status_dialog.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class PaymentWebViewScreen extends StatefulWidget {

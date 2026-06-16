@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class QuickActionButton extends StatelessWidget {
   final String label;
@@ -23,16 +24,23 @@ class QuickActionButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? ColorManager.wasabi : Colors.white,
+            color: isSelected
+                ? ColorManager.egyptianEarth
+                : ColorManager.noirDeVigne.withOpacity(0.6),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: ColorManager.wasabi, width: 1.5),
+            border: Border.all(
+              color: isSelected
+                  ? ColorManager.egyptianEarth
+                  : ColorManager.emeraldGreen.withOpacity(0.3),
+              width: 1.0,
+            ),
           ),
           child: Column(
             children: [
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : ColorManager.wasabi,
+                  color: isSelected ? Colors.white : Colors.white70,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -40,10 +48,11 @@ class QuickActionButton extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                "${amount.toStringAsFixed(0)} ج.م",
+                "${amount.toStringAsFixed(0)} ${context.tr('egp')}",
                 style: TextStyle(
                   color: isSelected ? Colors.white : ColorManager.wasabi,
                   fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],

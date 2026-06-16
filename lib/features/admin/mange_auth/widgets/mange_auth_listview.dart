@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/loading_overlay.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/manage_auth_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/mange_auth_states.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/loading_overlay.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/manage_auth_cubit.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/mange_auth_states.dart';
 import 'user_auth_card.dart'; // استدعاء كارت اليوزر اللي عملناه فوق
 
 class ManageAuthListView extends StatelessWidget {
@@ -51,7 +51,6 @@ class ManageAuthListView extends StatelessWidget {
               itemBuilder: (context, index) {
                 if (state.isLoading == false) {
                   final user = state.users[index];
-                  print(user.username);
                   return UserAuthCard(
                     user: user,
                     isActionLoading: state.isActionLoading,

@@ -2,13 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_id_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/booking_id_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
 class TimeSlotsList extends StatelessWidget {
-  final PlaceModel place;
+  final List<SubPlaceModel> subPlaces;
+  final SlotsModel? slots;
   final DateTime selectedDate;
   final int subPlaceIndex;
   final List<String> selectedSlots;
@@ -19,7 +21,8 @@ class TimeSlotsList extends StatelessWidget {
 
   const TimeSlotsList({
     super.key,
-    required this.place,
+    required this.subPlaces,
+    required this.slots,
     required this.selectedDate,
     required this.subPlaceIndex,
     required this.selectedSlots,
@@ -44,11 +47,17 @@ class TimeSlotsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final dayKey = DateFormat('EEEE dd/MM').format(selectedDate).toLowerCase();
-    final sub = place.subPlaces[subPlaceIndex];
-
-    final List<String> free = List.from(sub.freeTimeSlots[dayKey] ?? []);
-    final List<String> booked = sub.bookedTimeSlots
+    final dayKey = DateFormat('EEEE dd/MM', 'en').format(selectedDate).toLowerCase();
+    
+    if (slots == null || subPlaceIndex >= subPlaces.length) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: ColorManager.wasabi,
+        ),
+      );
+    }
+    final List<String> free = List.from(slots!.freeTimeSlots[dayKey] ?? []);
+    final List<String> booked = slots!.bookedTimeSlots
         .expand((booking) => booking.slots[dayKey] ?? <String>[])
         .toList();
 
@@ -86,7 +95,7 @@ class TimeSlotsList extends StatelessWidget {
         final isSelected = selectedSlots.contains(slot);
 
         // جلب بيانات الحجز للساعة الحالية
-        final bookingDetails = sub.bookedTimeSlots.firstWhere(
+        final bookingDetails = slots!.bookedTimeSlots.firstWhere(
           (b) => b.slots[dayKey]?.contains(slot) ?? false,
           orElse: () => BookingIdModel(
             bookingId: '',

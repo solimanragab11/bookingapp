@@ -25,3 +25,4 @@ ios/.generated/
 # ملفات النظام
 .DS_Store
 Thumbs.db
+**/secrets.properties

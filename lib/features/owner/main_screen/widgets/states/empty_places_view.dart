@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class EmptyPlacesView extends StatelessWidget {
   const EmptyPlacesView({super.key});
@@ -9,23 +10,24 @@ class EmptyPlacesView extends StatelessWidget {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(
+        children: [
+          const Icon(
             Icons.storefront_outlined,
             size: 80,
             color: ColorManager.creasedKhaki,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
-            "مفيش أماكن متضافة لسه يا وحش!",
-            style: TextStyle(
+            context.tr('noPlacesFound'),
+            style: const TextStyle(
               color: ColorManager.creasedKhaki,
               fontSize: 18,
+              fontWeight: FontWeight.w500,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 }
-

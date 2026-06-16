@@ -1,5 +1,5 @@
 // featurse/user/place_details/cubit/place_details_stats.dart
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class PlaceDetailsStats {}
 

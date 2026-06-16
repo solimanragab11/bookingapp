@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   const MapSelectionScreen({super.key});
@@ -20,6 +20,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   String _pickedAddress = "";
   final TextEditingController _searchController = TextEditingController();
   bool _isLoadingAddress = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   // --- 1. دالة تحويل الإحداثيات لعنوان نصي (Reverse Geocoding) ---
   Future<void> _getAddressFromLatLng(LatLng position) async {

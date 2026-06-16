@@ -1,4 +1,4 @@
-package com.example.remaking_booking_app_trail2
+package com.hanzbthalk.app
 
 import io.flutter.embedding.android.FlutterActivity
 

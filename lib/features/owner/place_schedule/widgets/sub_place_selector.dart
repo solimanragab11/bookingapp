@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class SubPlaceSelector extends StatelessWidget {
   final int count;
@@ -42,7 +43,7 @@ class SubPlaceSelector extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'ملعب ${index + 1}',
+                '${context.tr('field_label', defaultValue: 'Field')} ${index + 1}',
                 style: TextStyle(
                   color: isSelected ? Colors.black : Colors.white,
                   fontWeight: FontWeight.bold,

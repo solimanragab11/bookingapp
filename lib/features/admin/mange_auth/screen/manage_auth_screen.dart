@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/manage_auth_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/mange_auth_states.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/widgets/mang_auth_searchbar.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/widgets/mange_auth_listview.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/manage_auth_cubit.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/mange_auth_states.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/widgets/mang_auth_searchbar.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/widgets/mange_auth_listview.dart';
 
 class ManageAuthScreen extends StatelessWidget {
   const ManageAuthScreen({super.key});

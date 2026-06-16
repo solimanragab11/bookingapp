@@ -1,5 +1,7 @@
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
 import 'package:equatable/equatable.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
 
 enum ScheduleStatus { initial, loading, liveUpdate, actionSuccess, error }
 
@@ -14,6 +16,8 @@ class ScheduleState extends Equatable {
   bool get hasSelection => selectedSlots.isNotEmpty;
   // داتا الـ Firestore والـ Status
   final PlaceModel? currentPlace; // المكان اللي بنراقبه
+  final List<SubPlaceModel> subPlaces; // الملاعب الفرعية
+  final SlotsModel? currentSlots; // المواعيد الحالية للملعب المختار
   final ScheduleStatus status;
   final String? errorMessage;
 
@@ -24,6 +28,8 @@ class ScheduleState extends Equatable {
     this.isSelectingBooked = false,
     this.activeBookingId,
     this.currentPlace,
+    this.subPlaces = const [],
+    this.currentSlots,
     this.status = ScheduleStatus.initial,
     this.errorMessage,
   });
@@ -38,6 +44,8 @@ class ScheduleState extends Equatable {
       isSelectingBooked: false,
       activeBookingId: null,
       currentPlace: null, // لسه معندناش داتا في البداية
+      subPlaces: const [],
+      currentSlots: null,
       status: ScheduleStatus.initial,
       errorMessage: null,
     );
@@ -50,6 +58,8 @@ class ScheduleState extends Equatable {
     bool? Function()? isSelectingBooked,
     String? Function()? activeBookingId,
     PlaceModel? currentPlace,
+    List<SubPlaceModel>? subPlaces,
+    SlotsModel? currentSlots,
     ScheduleStatus? status,
     String? errorMessage,
   }) {
@@ -65,6 +75,8 @@ class ScheduleState extends Equatable {
           ? activeBookingId()
           : this.activeBookingId,
       currentPlace: currentPlace ?? this.currentPlace,
+      subPlaces: subPlaces ?? this.subPlaces,
+      currentSlots: currentSlots ?? this.currentSlots,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
     );
@@ -78,6 +90,8 @@ class ScheduleState extends Equatable {
     isSelectingBooked,
     activeBookingId,
     currentPlace,
+    subPlaces,
+    currentSlots,
     status,
     errorMessage,
   ];

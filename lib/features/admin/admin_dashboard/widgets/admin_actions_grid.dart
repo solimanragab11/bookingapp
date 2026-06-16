@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/admin/offer/offer_list/screen/offer_list_screen.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 
 class AdminActionsGrid extends StatelessWidget {
   final bool isTablet;
@@ -46,7 +47,12 @@ class AdminActionsGrid extends StatelessWidget {
         _ActionCard(
           title: context.tr("Promotions"),
           icon: Icons.campaign_rounded,
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => OffersListPage()),
+            );
+          },
           isLogout: false,
         ),
         _ActionCard(
@@ -54,7 +60,7 @@ class AdminActionsGrid extends StatelessWidget {
           icon: Icons.logout,
           onTap: () {
             context.read<AuthCubit>().logout();
-            Navigator.pushReplacementNamed(context, Routes.authWrapper);
+            Navigator.of(context).pushNamedAndRemoveUntil(Routes.authWrapper, (_) => false);
           },
           isLogout: true,
         ),

@@ -1,27 +1,29 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/cust_button.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/cubit/booking_states.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/helpers/booking_helper.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/booking_header_image.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/booking_slots_grid.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/booking_summary_widget.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/flexible_payment_input.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/widgets/text_details_booking_widget.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/repos/pricing_repository.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/core/widgets/cust_button.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_cubit.dart';
+import 'package:hanzbthalk/features/user/booking/cubit/booking_states.dart';
+import 'package:hanzbthalk/features/user/booking/helpers/booking_helper.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/booking_header_image.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/booking_slots_grid.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/booking_summary_widget.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/flexible_payment_input.dart';
+import 'package:hanzbthalk/features/user/booking/widgets/text_details_booking_widget.dart';
 
 class BookingPage extends StatelessWidget with BookingHelper {
   final PlaceModel place;
-  final SubPlace subPlace;
+  final SubPlaceModel subPlace;
 
   BookingPage({super.key, required this.place, required this.subPlace});
 
@@ -32,9 +34,11 @@ class BookingPage extends StatelessWidget with BookingHelper {
     final imageHeight = h * 0.25;
 
     return BlocProvider(
-      create: (context) =>
-          BookingCubit(BookingService(), AuthService())
-            ..initializeBooking(place: place, subPlace: subPlace),
+      create: (context) => BookingCubit(
+        getIt<BookingService>(),
+        getIt<AuthService>(),
+        getIt<PricingRepository>(),
+      )..initializeBooking(place: place, subPlace: subPlace),
       child: Scaffold(
         extendBodyBehindAppBar: true,
         appBar: AppBar(
@@ -47,202 +51,207 @@ class BookingPage extends StatelessWidget with BookingHelper {
         body: Stack(
           children: [
             BackGround(h: h, w: w),
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('places')
-                  .doc(place.id)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                SubPlace liveSubPlace = subPlace;
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  final List<dynamic> subList = data['subPlaces'] ?? [];
-                  final updatedData = subList.firstWhere(
-                    (e) =>
-                        e['id'] == subPlace.id ||
-                        e['name'] == subPlace.id, // تأكد من الـ ID الصح
-                    orElse: () => null,
-                  );
-                  if (updatedData != null) {
-                    liveSubPlace = SubPlace.fromJson(
-                      updatedData as Map<String, dynamic>,
-                    );
-                    context.read<BookingCubit>().updateLiveSubPlace(
-                      liveSubPlace,
-                    );
-                  }
+            BlocConsumer<BookingCubit, BookingState>(
+              listener: _bookingListener,
+              builder: (context, state) {
+                final cubit = context.read<BookingCubit>();
+                BookingDataState? currentState;
+
+                if (state is BookingDataState) {
+                  currentState = state;
+                } else if (cubit.state is BookingDataState) {
+                  currentState = cubit.state as BookingDataState;
                 }
+
+                final currentSubPlace = currentState?.liveSubPlace ?? subPlace;
 
                 return Stack(
                   children: [
-                    BlocConsumer<BookingCubit, BookingState>(
-                      listener: _bookingListener,
-                      builder: (context, state) {
-                        final cubit = context.read<BookingCubit>();
-                        BookingDataState? currentState;
-
-                        if (state is BookingDataState) {
-                          currentState = state;
-                        } else if (cubit.state is BookingDataState) {
-                          currentState = cubit.state as BookingDataState;
-                        }
-
-                        return SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
+                    if (state is BookingFailure)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
                           child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(height: imageHeight - 20),
                               Container(
-                                width: w,
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(
-                                    0.1,
-                                  ), // خليته 0.9 عشان الداتا تبان بوضوح
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(30),
+                                  shape: BoxShape.circle,
+                                  color: Colors.redAccent.withOpacity(0.1),
+                                  border: Border.all(
+                                    color: Colors.redAccent.withOpacity(0.3),
+                                    width: 1.5,
                                   ),
                                 ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: w * 0.04,
-                                  vertical: h * 0.02,
+                                child: const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: Colors.redAccent,
+                                  size: 48,
                                 ),
-                                child: Column(
-                                  children: [
-                                    if (currentState != null) ...[
-                                      TextDetailsBookingWidget(
-                                        w: w,
-                                        h: h,
-                                        place: place,
-                                        subPlace: liveSubPlace,
-                                        availableDaysWithSlots:
-                                            liveSubPlace.freeTimeSlots,
-                                        selectedDay: currentState.selectedDay,
-                                        onDaySelected: (day) =>
-                                            cubit.selectDay(day!),
-                                      ),
-                                      const SizedBox(height: 25),
-                                      BookingSlotsGrid(
-                                        selectedDay: currentState.selectedDay!,
-                                        selectedBookingSlots:
-                                            currentState.selectedBookingSlots,
-                                        bookedTimeSlots:
-                                            liveSubPlace.bookedTimeSlots,
-                                        onSlotToggled: (id) =>
-                                            cubit.toggleTimeSlot(id),
-                                        formatTimeSlot: formatTimeSlot,
-                                        freeTimeSlots:
-                                            liveSubPlace.freeTimeSlots,
-                                      ),
-                                      const SizedBox(height: 20),
-                                      BookingSummaryWidget(
-                                        selectedBookingSlots:
-                                            currentState.selectedBookingSlots,
-                                      ),
-                                      const SizedBox(height: 20),
-
-                                      // --- هنا تطبيق الـ FlexiblePaymentInput الجديد ---
-                                      // استخدمنا FutureBuilder عشان نجيب النقاط "لايف"
-                                      // --- داخل الـ build بتاع الـ BookingPage ---
-                                      FutureBuilder<int>(
-                                        future: cubit.getUserPoints(),
-                                        builder: (context, pointsSnapshot) {
-                                          // نجيب النقط الحقيقية من الـ snapshot أو نحط 0 لو لسه بيحمل
-                                          final actualUserPoints =
-                                              pointsSnapshot.data ?? 0;
-
-                                          return FlexiblePaymentInput(
-                                            // السعر النهائي المحسوب (بالخصم لو متفعل)
-                                            currentFinalPrice:
-                                                currentState?.finalAmount ??
-                                                currentState
-                                                    ?.originalTotalAmount ??
-                                                0.0,
-
-                                            // السعر الأصلي "الميزان" اللي مش بيتغير
-                                            originalTotalPrice:
-                                                currentState
-                                                    ?.originalTotalAmount ??
-                                                0.0,
-
-                                            // المبلغ اللي اليوزر كتبه يدفع دلوقتي
-                                            paidAmount:
-                                                currentState?.paidAmount ?? 0.0,
-
-                                            // إجمالي نقاط اليوزر الحقيقية
-                                            userPoints: actualUserPoints,
-
-                                            // النقاط اللي اليوزر اختارها من السلايدر حالياً
-                                            selectedPoints:
-                                                currentState?.usedPoints ?? 0,
-
-                                            // حالة مفتاح العرض (Toggle)
-                                            isOfferEnabled:
-                                                currentState?.isOffer ?? false,
-                                            minDeposit:
-                                                currentState
-                                                    ?.minRequiredDeposit ??
-                                                0,
-                                            // --- الربط الفعلي مع الـ Cubit ---
-
-                                            // لما اليوزر يفتح أو يقفل الـ Switch
-                                            onOfferToggle: (isOffer) {
-                                              cubit.toggleOffer(isOffer);
-                                            },
-
-                                            // لما اليوزر يحرك السلايدر بتاع النقاط
-                                            onPointsChanged: (points) {
-                                              cubit.updateUsedPoints(
-                                                points.toInt(),
-                                              );
-                                            },
-
-                                            // لما اليوزر يكتب مبلغ يدوي
-                                            onAmountEntered: (amount) {
-                                              cubit.updatePaidAmount(amount);
-                                            },
-
-                                            // لما يدوس على "أقل عربون"
-                                            onMinDepositTap: () {
-                                              cubit.updatePaidAmount(
-                                                currentState
-                                                        ?.minRequiredDeposit ??
-                                                    0.0,
-                                              );
-                                            },
-
-                                            // لما يدوس على "نصف المبلغ"
-                                            onHalfPriceTap: () {
-                                              final half =
-                                                  (currentState?.finalAmount ??
-                                                      0.0) /
-                                                  2;
-                                              cubit.updatePaidAmount(half);
-                                            },
-
-                                            // لما يدوس على "كامل المبلغ"
-                                            onFullPriceTap: () {
-                                              cubit.updatePaidAmount(
-                                                currentState?.finalAmount ??
-                                                    0.0,
-                                              );
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                    const SizedBox(height: 30),
-                                    _buildConfirmButton(context, state, w, h),
-                                    const SizedBox(height: 30),
-                                  ],
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                context.tr(state.errorMessage),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                context.tr('error'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ColorManager.egyptianEarth,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                                label: Text(context.tr('successButton')),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      )
+                    else if (currentState == null || currentState.slots == null)
+                      const Center(
+                        child: CircularProgressIndicator(
+                          color: ColorManager.wasabi,
+                        ),
+                      )
+                    else
+                      Builder(
+                        builder: (context) {
+                          final bookingData = currentState!;
+                          return SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: Column(
+                              children: [
+                                SizedBox(height: imageHeight - 20),
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(30),
+                                  ),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                    child: Container(
+                                      width: w,
+                                      decoration: BoxDecoration(
+                                        color: ColorManager.cardSurface.withOpacity(0.4),
+                                        borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(30),
+                                        ),
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: ColorManager.emeraldGreen.withOpacity(0.3),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: w * 0.04,
+                                        vertical: h * 0.02,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          TextDetailsBookingWidget(
+                                            w: w,
+                                            h: h,
+                                            place: place,
+                                            subPlace: currentSubPlace,
+                                            availableDaysWithSlots:
+                                                bookingData.slots!.freeTimeSlots,
+                                            selectedDay: bookingData.selectedDay,
+                                            onDaySelected: (day) =>
+                                                cubit.selectDay(day!),
+                                          ),
+                                          const SizedBox(height: 25),
+                                          BookingSlotsGrid(
+                                            selectedDay: bookingData.selectedDay!,
+                                            selectedBookingSlots:
+                                                bookingData.selectedBookingSlots,
+                                            bookedTimeSlots:
+                                                bookingData.slots!.bookedTimeSlots,
+                                            onSlotToggled: (id) =>
+                                                cubit.toggleTimeSlot(id),
+                                            formatTimeSlot: formatTimeSlot,
+                                            freeTimeSlots:
+                                                bookingData.slots!.freeTimeSlots,
+                                          ),
+                                      const SizedBox(height: 20),
+                                      BookingSummaryWidget(
+                                        selectedBookingSlots:
+                                            bookingData.selectedBookingSlots,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      FlexiblePaymentInput(
+                                        currentFinalPrice:
+                                            bookingData.finalAmount,
+                                        originalTotalPrice:
+                                            bookingData.originalTotalAmount,
+                                        minDeposit:
+                                            bookingData.minRequiredDeposit,
+                                        paidAmount: bookingData.paidAmount,
+                                        userPoints: bookingData.userPoints,
+                                        selectedPoints: bookingData.usedPoints,
+                                        isOfferEnabled: bookingData.isOffer,
+                                        onOfferToggle: (enabled) {
+                                          cubit.toggleOffer(enabled);
+                                        },
+                                        onPointsChanged: (pts) {
+                                          cubit.updateUsedPoints(pts.toInt());
+                                        },
+                                        onAmountEntered: (amount) {
+                                          cubit.updatePaidAmount(amount);
+                                        },
+                                        onMinDepositTap: () {
+                                          cubit.updatePaidAmount(
+                                            bookingData.minRequiredDeposit,
+                                          );
+                                        },
+                                        onHalfPriceTap: () {
+                                          final half =
+                                              bookingData.finalAmount / 2;
+                                          cubit.updatePaidAmount(half);
+                                        },
+                                        onFullPriceTap: () {
+                                          cubit.updatePaidAmount(
+                                            bookingData.finalAmount,
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(height: 30),
+                                      _buildConfirmButton(context, state, w, h),
+                                      const SizedBox(height: 30),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                              ],
+                            ),
+                          );
+                        }
+                      ),
                     BookingHeaderImage(
-                      imageUrl: liveSubPlace.imageUrl,
+                      imageUrl: currentSubPlace.imageUrl,
                       height: imageHeight,
                     ),
                   ],
@@ -283,7 +292,7 @@ class BookingPage extends StatelessWidget with BookingHelper {
   ) {
     if (state is BookingLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: ColorManager.wasabi),
+        child: CircularProgressIndicator(color: ColorManager.egyptianEarth),
       );
     }
 
@@ -301,20 +310,31 @@ class BookingPage extends StatelessWidget with BookingHelper {
     return CustButton(
       h: h,
       w: w,
-      color: isEnabled ? ColorManager.wasabi : Colors.grey[400]!,
+      color: isEnabled ? ColorManager.egyptianEarth : ColorManager.cardSurface,
       lable: context.tr('payNow'),
       size: 'mid',
       onTap: isEnabled
-          ? () {
+          ? () async {
+              // Show loading overlay
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => const Center(
+                  child: CircularProgressIndicator(
+                    color: ColorManager.egyptianEarth,
+                  ),
+                ),
+              );
               final data = cubit.state as BookingDataState;
               final authUser = context.read<AuthCubit>().currentUser;
 
               // بنباصي الـ paidAmount اللي جاي من الـ FlexiblePaymentInput
-              handleWalletPayment(
+              await handleWalletPayment(
                 context,
                 data.paidAmount,
                 authUser?.phoneNumber ?? "0000000000",
               );
+              Navigator.of(context).pop(); // close loading dialog
               Navigator.pop(context);
             }
           : () {},

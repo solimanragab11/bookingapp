@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/add_place_text_field.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/add_place_text_field.dart';
 
 class BasicInfoStep extends StatelessWidget {
   final TextEditingController nameController;

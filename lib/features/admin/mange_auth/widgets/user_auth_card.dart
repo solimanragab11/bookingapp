@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class UserAuthCard extends StatelessWidget {
   final UserModel user;
@@ -98,16 +98,16 @@ class UserAuthCard extends StatelessWidget {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: ['owner', 'client', 'admin'].contains(user.userRole)
+                value: ['owner', 'user', 'admin'].contains(user.userRole)
                     ? user.userRole
-                    : 'client',
+                    : 'user',
                 icon: Icon(Icons.arrow_drop_down, color: ColorManager.wasabi),
                 style: TextStyle(
                   color: ColorManager.egyptianEarth,
                   fontWeight: FontWeight.w600,
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'client', child: Text('Client')),
+                  DropdownMenuItem(value: 'user', child: Text('user')),
                   DropdownMenuItem(value: 'owner', child: Text('Owner')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
                 ],

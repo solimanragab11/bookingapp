@@ -1,8 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_wrapper_states.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper_states.dart';
+import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
@@ -19,17 +22,55 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      currentUser = await _authService.getCurrentUser();
-
-      if (currentUser == null) {
-        // Firebase session exists but Firestore doc is missing — sign out cleanly.
-        await _authService.signOut();
-        emit(const AuthUnauthenticated());
+      // 1. Validate Firebase Auth Session with a Reload
+      try {
+        await _authService.reloadUser();
+      } on FirebaseAuthException catch (fe) {
+        debugPrint('[AuthCubit] checkAuthStatus reload FirebaseAuthException: ${fe.code}');
+        if (fe.code == 'user-not-found' ||
+            fe.code == 'user-disabled' ||
+            fe.code == 'invalid-credential') {
+          // Session is invalid on server — log out cleanly.
+          await _authService.signOut();
+          currentUser = null;
+          emit(const AuthUnauthenticated());
+          return;
+        } else {
+          // Network or other transient error — do NOT sign out!
+          emit(const AuthFailure('networkError'));
+          return;
+        }
+      } catch (e) {
+        debugPrint('[AuthCubit] checkAuthStatus reload generic error: $e');
+        emit(const AuthFailure('networkError'));
         return;
       }
 
+      // 2. Fetch User Document from Firestore
+      try {
+        currentUser = await _authService.getCurrentUser();
+        if (currentUser == null) {
+          // Firebase Auth session is active but user document is missing in Firestore.
+          // Force sign out to recover cleanly.
+          await _authService.signOut();
+          emit(const AuthUnauthenticated());
+          return;
+        }
+      } catch (fe) {
+        // Firestore fetch failed (most likely network/timeout error)
+        debugPrint('[AuthCubit] checkAuthStatus fetch error: $fe');
+        emit(const AuthFailure('networkError'));
+        return;
+      }
+
+      // 3. Validate Role
       final role = currentUser!.userRole;
-      if (role != 'owner' && role != 'user' && role != 'admin') {
+      if (role != 'owner' &&
+          role != 'owner_a' &&
+          role != 'owner_b' &&
+          role != 'employee' &&
+          role != 'user' &&
+          role != 'admin') {
         // Unknown role — treat as unauthenticated to avoid routing into a broken screen.
         await _authService.signOut();
         currentUser = null;
@@ -39,7 +80,7 @@ class AuthCubit extends Cubit<AuthState> {
 
       emit(AuthSuccess(user: currentUser!, role: role));
     } catch (e) {
-      debugPrint('[AuthCubit] checkAuthStatus error: $e');
+      debugPrint('[AuthCubit] checkAuthStatus fatal error: $e');
       emit(const AuthFailure('authError'));
     }
   }
@@ -50,6 +91,9 @@ class AuthCubit extends Cubit<AuthState> {
       if (updated != null) {
         currentUser = updated;
         emit(AuthSuccess(user: currentUser!, role: currentUser!.userRole));
+      } else {
+        // Firestore user document missing — sign out cleanly.
+        await logout();
       }
     } catch (e) {
       debugPrint('[AuthCubit] refreshUserData error: $e');
@@ -60,6 +104,10 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> logout() async {
     try {
       await _authService.signOut();
+      // Reset the lazy singleton Cubit to clear previous owner's data
+      if (getIt.isRegistered<ManageBookingPlaceCubit>()) {
+        await getIt.resetLazySingleton<ManageBookingPlaceCubit>();
+      }
     } catch (e) {
       debugPrint('[AuthCubit] logout error: $e');
     } finally {

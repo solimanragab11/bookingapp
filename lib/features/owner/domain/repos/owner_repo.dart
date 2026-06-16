@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class OwnerRepo {
   // إضافة مكان جديد (بترجع Either عشان لو فيه Error ترجع لنا String)

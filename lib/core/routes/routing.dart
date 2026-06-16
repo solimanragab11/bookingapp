@@ -1,41 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/di/dependency_injection.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/screen/admin_dashboard_screen.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_home/logic/admin_home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_home/screens/admin_home_screen.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/manage_auth_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/screen/manage_auth_screen.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_cubit.dart';
+import 'package:hanzbthalk/features/admin/admin_dashboard/screen/admin_dashboard_screen.dart';
+import 'package:hanzbthalk/features/admin/admin_home/logic/admin_home_cubit.dart';
+import 'package:hanzbthalk/features/admin/admin_home/screens/admin_home_screen.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/manage_auth_cubit.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/screen/manage_auth_screen.dart';
 
 // Logic & Cubits
-import 'package:remaking_booking_app_trail2/features/auth/login/bloc/login_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/auth/signup/cubit/signup_cubit.dart.dart';
-import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/user_bookings/cubit/user_bookings_cubit.dart';
+import 'package:hanzbthalk/features/auth/login/bloc/login_cubit.dart';
+import 'package:hanzbthalk/features/auth/signup/cubit/signup_cubit.dart.dart';
+import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
+import 'package:hanzbthalk/features/owner/manage_employees/screens/permission_denied_screen.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
+import 'package:hanzbthalk/features/user/user_bookings/cubit/user_bookings_cubit.dart';
 
 // Screens
-import 'package:remaking_booking_app_trail2/features/admin/add_place/screens/add_place_page.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/widgets/map_selection_screen.dart';
-import 'package:remaking_booking_app_trail2/features/auth/auth_wrapper/auth_wrapper.dart';
-import 'package:remaking_booking_app_trail2/features/auth/login/presentation/login_page.dart';
-import 'package:remaking_booking_app_trail2/features/auth/signup/presentation/signup_page.dart';
-import 'package:remaking_booking_app_trail2/features/owner/dashboard/screens/dashboard_screen.dart';
-import 'package:remaking_booking_app_trail2/features/owner/gloabal_dashboard/screens/global_dashboard_screen.dart';
-import 'package:remaking_booking_app_trail2/features/owner/main_screen/screen/owner_main_screen.dart';
-import 'package:remaking_booking_app_trail2/features/owner/place_schedule/screen/place_schedule_screen.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/presentation/home_page.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/presentation/booking_page.dart';
-import 'package:remaking_booking_app_trail2/features/user/place_details/presentation/place_details_screen.dart';
-import 'package:remaking_booking_app_trail2/features/user/user_bookings/presentation/user_bookings_page.dart';
-import 'package:remaking_booking_app_trail2/features/admin/offer_mngmnt/presentation/offer_Screen.dart';
+import 'package:hanzbthalk/features/admin/add_place/screens/add_place_page.dart';
+import 'package:hanzbthalk/features/admin/add_place/widgets/map_selection_screen.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper.dart';
+import 'package:hanzbthalk/features/auth/login/presentation/login_page.dart';
+import 'package:hanzbthalk/features/auth/signup/presentation/signup_page.dart';
+import 'package:hanzbthalk/features/owner/dashboard/screens/dashboard_screen.dart';
+import 'package:hanzbthalk/features/owner/gloabal_dashboard/screens/global_dashboard_screen.dart';
+import 'package:hanzbthalk/features/owner/main_screen/screen/owner_main_screen.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/screen/place_schedule_screen.dart';
+import 'package:hanzbthalk/features/owner/manage_employees/logic/manage_employees_cubit.dart';
+import 'package:hanzbthalk/features/owner/manage_employees/screens/manage_employees_screen.dart';
+import 'package:hanzbthalk/features/user/home/presentation/home_page.dart';
+import 'package:hanzbthalk/features/user/booking/presentation/booking_page.dart';
+import 'package:hanzbthalk/features/user/place_details/presentation/place_details_screen.dart';
+import 'package:hanzbthalk/features/user/user_bookings/presentation/user_bookings_page.dart';
+
+// Onboarding
+import 'package:hanzbthalk/features/owner_onboarding/presentation/bloc/owner_onboarding_bloc.dart';
+import 'package:hanzbthalk/features/owner_onboarding/presentation/pages/owner_intro_page.dart';
+import 'package:hanzbthalk/features/owner_onboarding/presentation/pages/owner_agreement_page.dart';
+import 'package:hanzbthalk/features/owner_onboarding/presentation/pages/owner_pending_page.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
+    // Route protection guard: Redirect unauthenticated requests to the auth wrapper
+    final publicRoutes = [Routes.authWrapper, Routes.login, Routes.signup];
+
+    final authService = getIt<AuthService>();
+    if (!authService.isUserLoggedIn() &&
+        !publicRoutes.contains(settings.name)) {
+      debugPrint(
+        '[AppRouter] Route protection: blocking unauthenticated access to ${settings.name}',
+      );
+      return MaterialPageRoute(builder: (_) => const AuthWrapper());
+    }
+
     switch (settings.name) {
       // ================= AUTH ROUTES =================
       case Routes.authWrapper:
@@ -117,14 +141,6 @@ class AppRouter {
       case Routes.adminDashboardScreen:
         return MaterialPageRoute(builder: (_) => const AdminDashboardScreen());
 
-      case Routes.activateOfferRoute:
-        final args = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(
-          builder: (_) => ActivateOfferScreen(
-            placeId: args['placeId'],
-            subPlaceId: args['subPlaceId'],
-          ),
-        );
       case Routes.adminMangeAuth:
         return MaterialPageRoute(
           builder: (_) => BlocProvider.value(
@@ -166,6 +182,36 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => OwnerDashboardScreen(placeId: placeId),
         );
+
+      case Routes.manageEmployees:
+        final authCubit = getIt<AuthCubit>();
+        final currentUser = authCubit.currentUser;
+        // Only block if a user is present and lacks the required permission
+        if (currentUser != null && !PermissionService.can(currentUser, 'manageEmployees')) {
+          return MaterialPageRoute(builder: (_) => const ManageEmployeesPermissionDenied());
+        }
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) =>
+                getIt<ManageEmployeesCubit>()..loadCurrentEmployees(),
+            child: const ManageEmployeesScreen(),
+          ),
+        );
+
+      // ================= OWNER ONBOARDING ROUTES =================
+      case Routes.ownerIntro:
+        return MaterialPageRoute(builder: (_) => const OwnerIntroPage());
+
+      case Routes.ownerAgreement:
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) => getIt<OwnerOnboardingBloc>(),
+            child: const OwnerAgreementPage(),
+          ),
+        );
+
+      case Routes.ownerPending:
+        return MaterialPageRoute(builder: (_) => const OwnerPendingPage());
 
       // ================= DEFAULT ERROR ROUTE =================
       default:

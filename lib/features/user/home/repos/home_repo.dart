@@ -1,11 +1,15 @@
 // lib/features/user/home/data/repos/home_repo.dart
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
 
 abstract class HomeRepo {
   Future<List<PlaceModel>> getAllPlaces();
   Future<List<PlaceModel>> getPlacesByCat(String cat);
   Future<List<PlaceModel>> searchPlacesByName(String query);
+  Future<List<SubPlaceModel>> getAllSubPlaces();
+  Future<List<SlotsModel>> getAllSlots();
 }
 
 class HomeRepoImpl implements HomeRepo {
@@ -31,5 +35,15 @@ class HomeRepoImpl implements HomeRepo {
     // هنا بنقدر نهندل الـ Errors بشكل مركزي أو نغير مصدر البيانات
 
     return await _firebaseFunctions.getPlacesByCat(cat);
+  }
+
+  @override
+  Future<List<SubPlaceModel>> getAllSubPlaces() async {
+    return await _firebaseFunctions.getAllSubPlaces();
+  }
+
+  @override
+  Future<List<SlotsModel>> getAllSlots() async {
+    return await _firebaseFunctions.getAllSlots();
   }
 }

@@ -1,10 +1,16 @@
+// --- Replace add_place_repo.dart with this version ---
+
 import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/db/admin_services.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/subplace_builder.dart';
+import 'package:hanzbthalk/features/admin/add_place/repo/subplace_upload_helper.dart';
 
 class AddPlaceRepo {
   final AdminService _adminService;
@@ -15,7 +21,7 @@ class AddPlaceRepo {
     try {
       return await _authService.getUserById(ownerId);
     } catch (e) {
-      throw Exception("Repo Error: Failed to get owner by ID -> $e");
+      throw DatabaseException("Repo Error: Failed to get owner by ID -> $e");
     }
   }
 
@@ -23,177 +29,200 @@ class AddPlaceRepo {
     return _adminService.searchOwnersByPhone(phone);
   }
 
-  // ─── 🔥 تعديل 1: معالجة رفع الصور بالكامل بالتوازي (Concurrent Upload) ───
-  Future<List<String>> _processImages(
-    List<dynamic> images,
-    String folderPath,
-  ) async {
-    // تجهيز لستة من المهام (Futures) بدون عمل await لكل وحدة على حدة
-    final List<Future<String>> uploadTasks = images.map((item) async {
-      if (item is String) {
-        if (item.startsWith('http') || item.startsWith('https')) {
-          return item; // صورة قديمة جاهزة
-        } else if (item.isNotEmpty) {
-          return await _adminService.uploadFile(
-            File(item),
-            folderPath,
-          ); // مسار محلي
-        }
-      } else if (item is File) {
-        return await _adminService.uploadFile(item, folderPath); // ملف حقيقي
-      }
-      return '';
-    }).toList();
-
-    // تشغيل الرفع بالكامل مع بعض في نفس الثانية
-    final List<String> processedUrls = await Future.wait(uploadTasks);
-    return processedUrls.where((url) => url.isNotEmpty).toList();
+  Future<List<SubPlaceModel>> getSubPlacesByIds(List<String> ids) {
+    return _adminService.getSubPlacesByIds(ids);
   }
 
-  // ─── Save / Create Mode (رفع الصور الأساسية والفرعية معاً بالتوازي) ───
-  Future<void> uploadAndSavePlace({required PlaceModel place}) async {
-    String placeId = place.id.isEmpty
+  UploadTask startPlaceImageUpload({
+    required File file,
+    required String folderPath,
+  }) {
+    return _adminService.getUploadTask(file, folderPath);
+  }
+
+  // ─── Save / Create Mode ──────────────────────────────────────────────────
+
+  /// Builds [SubPlaceModel]/[SlotsModel]s from raw [subPlacesData], uploads
+  /// any local images (main + subplace), and persists everything for a
+  /// brand-new place.
+  Future<void> uploadAndSavePlace({
+    required PlaceModel place,
+    required List<Map<String, dynamic>> subPlacesData,
+    required Function(double progress) onProgress,
+  }) async {
+    final String placeId = place.id.isEmpty
         ? _adminService.getNewPlaceId()
         : place.id;
 
-    // 1. نجهز دالة رفع الصور الرئيسية في الخلفية
-    final Future<List<String>> mainImagesTask = _processImages(
-      place.images,
-      "$placeId/main_images",
+    // New place -> no pre-existing subplaces to reconcile against.
+    final subPlaceModels = buildAllSubPlaceModels(
+      placeId: placeId,
+      subPlacesData: subPlacesData,
+      existingSubPlaces: const [],
+    );
+    final newSlots = buildNewSlotsModels(
+      subPlaceModels: subPlaceModels,
+      existingSubPlaces: const [],
     );
 
-    // 2. نجهز دالة رفع صور الملاعب الفرعية كلها بالتوازي
-    final List<Future<SubPlace>> subPlaceTasks = place.subPlaces.map((
-      sub,
-    ) async {
-      String subImageUrl = sub.imageUrl;
-      if (subImageUrl.isNotEmpty && !subImageUrl.startsWith('http')) {
-        subImageUrl = await _adminService.uploadFile(
-          File(subImageUrl),
-          "$placeId/${sub.id}",
-        );
-      }
-      return sub.copyWith(imageUrl: subImageUrl);
-    }).toList();
+    final totalFiles = countLocalFilesToUpload(place.images, subPlaceModels);
+    int uploadedCount = 0;
+    void onFileUploaded() {
+      uploadedCount++;
+      onProgress((uploadedCount / totalFiles) * 100);
+    }
 
-    // 3. 🔥 تشغيل الرفع الجماعي (الرئيسي والفرعي) في ضربة واحدة سريعة للشبكة
-    final results = await Future.wait([
-      mainImagesTask,
-      Future.wait(subPlaceTasks),
-    ]);
+    final finalMainImages = await uploadMainImages(
+      adminService: _adminService,
+      placeId: placeId,
+      images: place.images,
+      onFileUploaded: onFileUploaded,
+    );
 
-    final List<String> finalMainImages = results[0] as List<String>;
-    final List<SubPlace> finalSubPlaces = results[1] as List<SubPlace>;
+    final finalSubPlaces = await uploadSubPlaceImages(
+      adminService: _adminService,
+      placeId: placeId,
+      subPlaces: subPlaceModels,
+      onFileUploaded: onFileUploaded,
+    );
 
-    // 4. الحفظ النهائي في Firestore
     final finalPlace = place.copyWith(
       id: placeId,
-      images: finalMainImages,
-      subPlaces: finalSubPlaces,
+      images: [
+        ...finalMainImages,
+        ...finalSubPlaces.map((sp) => sp.imageUrl).where((url) => url.isNotEmpty),
+      ],
+      subPlacesIds: finalSubPlaces.map((sp) => sp.id).toList(),
     );
 
-    await _adminService.savePlace(finalPlace);
+    await _adminService
+        .savePlaceData(
+          place: finalPlace,
+          subPlaces: finalSubPlaces,
+          slotsList: newSlots,
+        )
+        .timeout(const Duration(seconds: 15));
+
+    onProgress(100.0);
   }
 
-  // ─── Update / Edit Mode (تنظيف الـ Storage في الخلفية بدون تعطيل الـ UI) ───
-  Future<void> processPlaceUpdate({required PlaceModel updatedPlace}) async {
+  // ─── Update / Edit Mode ──────────────────────────────────────────────────
+
+  /// Builds [SubPlaceModel]/[SlotsModel]s from raw [subPlacesData] (reusing
+  /// `slotsIds` from [existingSubPlaces] where the subplace already
+  /// existed), uploads any new local images (main + subplace), deletes
+  /// images that were removed, and persists everything.
+  Future<void> processPlaceUpdate({
+    required PlaceModel updatedPlace,
+    required List<Map<String, dynamic>> subPlacesData,
+    required List<SubPlaceModel> existingSubPlaces,
+    required Function(double progress) onProgress,
+  }) async {
     final PlaceModel? oldPlace = await _adminService.getPlaceById(
       updatedPlace.id,
     );
-    if (oldPlace == null) throw Exception("النسخة القديمة غير موجودة لتعديلها");
 
-    List<String> filesToDelete = [];
+    if (oldPlace == null) {
+      throw const PlaceNotFoundException("old_version_not_found_to_edit");
+    }
 
-    // 1. تجميع الصور الرئيسية الممسوحة
-    for (var oldUrl in oldPlace.images) {
+    final subPlaceModels = buildAllSubPlaceModels(
+      placeId: updatedPlace.id,
+      subPlacesData: subPlacesData,
+      existingSubPlaces: existingSubPlaces,
+    );
+    final newSlots = buildNewSlotsModels(
+      subPlaceModels: subPlaceModels,
+      existingSubPlaces: existingSubPlaces,
+    );
+    final newSubPlaceIds = newSlots.map((s) => s.id).toSet();
+
+    // ─── Collect removed image urls for background deletion ───
+    final List<String> filesToDelete = [];
+
+    final oldSubPlaceUrls = existingSubPlaces.map((sp) => sp.imageUrl).toSet();
+    final oldMainUrls = oldPlace.images.where((img) => !oldSubPlaceUrls.contains(img)).toSet();
+
+    for (var oldUrl in oldMainUrls) {
       if (!updatedPlace.images.contains(oldUrl)) {
         filesToDelete.add(oldUrl);
       }
     }
 
-    // 2. تجميع صور الـ SubPlaces الممسوحة أو المعدلة
-    List<Future<SubPlace>> subPlaceUploadTasks = updatedPlace.subPlaces.map((
-      sub,
-    ) async {
-      String subUrl = sub.imageUrl;
-
-      final oldSub = oldPlace.subPlaces.firstWhere(
-        (element) => element.id == sub.id,
-        orElse: () =>
-            SubPlace(id: '', imageUrl: '', pricePerHour: 0, playersNumber: 0),
-      );
-
-      if (oldSub.id.isNotEmpty &&
-          oldSub.imageUrl.isNotEmpty &&
-          oldSub.imageUrl != subUrl) {
-        filesToDelete.add(oldSub.imageUrl); // إضافة الصورة القديمة للحذف
-      }
-
-      if (subUrl.isNotEmpty && !subUrl.startsWith('http')) {
-        subUrl = await _adminService.uploadFile(
-          File(subUrl),
-          "${updatedPlace.id}/${sub.id}",
-        );
-      }
-      return sub.copyWith(imageUrl: subUrl);
-    }).toList();
-
-    // تجميع الـ SubPlaces التي حذفت بالكامل
-    for (var oldSub in oldPlace.subPlaces) {
-      final isStillExist = updatedPlace.subPlaces.any(
-        (element) => element.id == oldSub.id,
-      );
-      if (!isStillExist && oldSub.imageUrl.isNotEmpty) {
+    final newSubPlaceImageUrls = subPlaceModels
+        .map((sp) => sp.imageUrl)
+        .toSet();
+    for (var oldSub in existingSubPlaces) {
+      if (oldSub.imageUrl.isNotEmpty &&
+          !newSubPlaceImageUrls.contains(oldSub.imageUrl)) {
         filesToDelete.add(oldSub.imageUrl);
       }
     }
 
-    // 🚀 🔥 الـحـركـة الـسـحـريـة: إرسال أمر حذف الملفات القديمة بدون await!
-    // الفايربيز هيحذفهم براحته في الخلفية دون قفل الـ Thread، والـ UI هيكمل فوراُ
     if (filesToDelete.isNotEmpty) {
       _adminService.deleteMultipleFilesByUrls(filesToDelete).catchError((e) {
-        debugPrint("Background deletion log (safe to ignore for UI flow): $e");
+        debugPrint("Background deletion log: $e");
       });
     }
 
-    // 3. تشغيل عمليات الرفع الجديدة (الأساسية والفرعية) بالتوازي
-    final Future<List<String>> mainImagesUploadTask = _processImages(
+    // ─── Upload new local images ───
+    final totalFiles = countLocalFilesToUpload(
       updatedPlace.images,
-      "${updatedPlace.id}/main_images",
+      subPlaceModels,
     );
-
-    final uploadResults = await Future.wait([
-      mainImagesUploadTask,
-      Future.wait(subPlaceUploadTasks),
-    ]);
-
-    final List<String> finalImages = uploadResults[0] as List<String>;
-    final List<SubPlace> finalSubPlaces = uploadResults[1] as List<SubPlace>;
-
-    // 4. التجميع النهائي والتحديث
-    final finalUpdatedPlace = updatedPlace.copyWith(
-      images: finalImages,
-      subPlaces: finalSubPlaces,
-    );
-
-    await _adminService.updatePlace(finalUpdatedPlace);
-  }
-
-  // ─── Delete Mode (مسح شامل وكامل بضربة توازية واحدة) ───
-  Future<void> completelyDeletePlace(PlaceModel place) async {
-    List<dynamic> allUrlsToDelete = [];
-    allUrlsToDelete.addAll(place.images);
-
-    for (var sub in place.subPlaces) {
-      if (sub.imageUrl.isNotEmpty) {
-        allUrlsToDelete.add(sub.imageUrl);
-      }
+    int uploadedCount = 0;
+    void onFileUploaded() {
+      uploadedCount++;
+      onProgress((uploadedCount / totalFiles) * 100);
     }
 
-    // حذف الصور وحذف المستند بالتوازي مع بعض!
+    final finalImages = await uploadMainImages(
+      adminService: _adminService,
+      placeId: updatedPlace.id,
+      images: updatedPlace.images,
+      onFileUploaded: onFileUploaded,
+    );
+
+    final finalSubPlaces = await uploadSubPlaceImages(
+      adminService: _adminService,
+      placeId: updatedPlace.id,
+      subPlaces: subPlaceModels,
+      onFileUploaded: onFileUploaded,
+    );
+
+    final finalUpdatedPlace = updatedPlace.copyWith(
+      images: [
+        ...finalImages,
+        ...finalSubPlaces.map((sp) => sp.imageUrl).where((url) => url.isNotEmpty),
+      ],
+      subPlacesIds: finalSubPlaces.map((sp) => sp.id).toList(),
+    );
+
+    await _adminService
+        .updatePlaceWithSubPlaces(
+          place: finalUpdatedPlace,
+          allSubPlaces: finalSubPlaces,
+          allSlots: newSlots,
+          newSubPlaceIds: newSubPlaceIds,
+        )
+        .timeout(const Duration(seconds: 15));
+
+    onProgress(100.0);
+  }
+
+  // ─── Delete Mode ──────────────────────────────────────────────────────────
+
+  Future<void> completelyDeletePlace(PlaceModel place) async {
+    final List<dynamic> allUrlsToDelete = [...place.images];
+
+    final subPlaces = await _adminService.getSubPlacesByIds(place.subPlacesIds);
+    for (var sub in subPlaces) {
+      if (sub.imageUrl.isNotEmpty) allUrlsToDelete.add(sub.imageUrl);
+    }
+
     await Future.wait([
       _adminService.deleteMultipleFilesByUrls(allUrlsToDelete),
-      _adminService.deletePlaceFromFirebase(place.id),
+      _adminService.completelyDeletePlace(place),
     ]);
   }
 }

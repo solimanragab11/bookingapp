@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -43,53 +44,42 @@ class AuthService {
     required String verificationId,
     required String smsCode,
   }) async {
-    PhoneAuthCredential credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-    return await _auth.signInWithCredential(credential);
+    try {
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw DatabaseException(handleFirebaseAuthException(e));
+    }
   }
 
   // 4. جلب بيانات المستخدم الحالي من Firestore
   Future<UserModel?> getCurrentUser() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        DocumentSnapshot doc = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          return UserModel.fromJson(doc.data() as Map<String, dynamic>);
-        }
+    final user = _auth.currentUser;
+    if (user != null) {
+      DocumentSnapshot doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        return UserModel.fromJson(doc.data() as Map<String, dynamic>);
       }
-      return null;
-    } catch (e) {
-      debugPrint("Error in getCurrentUser: $e");
-      return null;
     }
+    return null;
+  }
+
+  // الحصول على كائن المستخدم الحالي من Firebase Auth مباشرة
+  User? get currentUser => _auth.currentUser;
+
+  // إعادة تحميل بيانات المستخدم من السيرفر للتحقق من حالته
+  Future<void> reloadUser() async {
+    await _auth.currentUser?.reload();
   }
 
   Future<String?> getCurrentUserId() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        DocumentSnapshot doc = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          UserModel user = UserModel.fromJson(
-            doc.data() as Map<String, dynamic>,
-          );
-          return user.id;
-        }
-      }
-      return null;
-    } catch (e) {
-      debugPrint("Error in getCurrentUser: $e");
-      return null;
-    }
+    return _auth.currentUser?.uid;
   }
 
   // 5. فحص هل المستخدم موجود مسبقاً في Firestore (تمت الإضافة)
@@ -121,13 +111,13 @@ class AuthService {
   String handleFirebaseAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-phone-number':
-        return 'invalidEmail';
+        return 'phoneInvalid';
       case 'too-many-requests':
         return 'tooManyRequests';
       case 'session-expired':
-        return 'sessionExpired';
+        return 'session_expired';
       case 'invalid-verification-code':
-        return 'invalidCode';
+        return 'invalid_otp';
       default:
         return e.toString();
     }
@@ -145,18 +135,13 @@ class AuthService {
   // inside owner_service.dart
 
   Future<UserModel?> getUserById(String userId) async {
-    try {
-      DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
-      if (doc.exists) {
-        return UserModel.fromJson(doc.data() as Map<String, dynamic>);
-      }
-      return null;
-    } catch (e) {
-      debugPrint("Error in getCurrentUser: $e");
-      return null;
+    DocumentSnapshot doc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .get();
+    if (doc.exists) {
+      return UserModel.fromJson(doc.data() as Map<String, dynamic>);
     }
+    return null;
   }
 }

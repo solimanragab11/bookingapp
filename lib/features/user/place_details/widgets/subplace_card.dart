@@ -1,14 +1,15 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/subplace_image.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/subplace_info_item.dart';
 
 class SubPlaceCard extends StatelessWidget {
   final PlaceModel place;
-  final SubPlace subPlace;
+  final SubPlaceModel subPlace;
   final VoidCallback onPressed;
   final bool isAvailable;
 
@@ -28,11 +29,12 @@ class SubPlaceCard extends StatelessWidget {
     return Container(
       margin: EdgeInsets.symmetric(vertical: h * 0.01),
       decoration: BoxDecoration(
-        color: ColorManager.cardSurface.withOpacity(0.9),
+        color: ColorManager.cardSurface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: ColorManager.emeraldGreen, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -41,57 +43,10 @@ class SubPlaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. صورة الملعب الفرعي
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: subPlace.imageUrl,
-                  height: h * 0.18,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  // مؤشر تحميل ناعم بنفس مقاسات الصورة عشان الـ UI ميرعشش وهو بيحمل أول مرة
-                  placeholder: (context, url) => Container(
-                    height: h * 0.18,
-                    width: double.infinity,
-                    color: ColorManager
-                        .noirDeVigne, // أو الـ background المتناسق عندك
-                    child: const Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            ColorManager.wasabi,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // الـ Error Widget بتاعتك بالظبط بأيقونة كورة القدم ومقاسها 50
-                  errorWidget: (context, url, error) => Container(
-                    height: h * 0.18,
-                    width: double.infinity,
-                    color: Colors.grey.shade300,
-                    child: const Icon(
-                      Icons.sports_soccer,
-                      size: 50,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-              // تاغ متاح / غير متاح
-              Positioned(
-                top: 12,
-                right: 12,
-                child: _buildAvailabilityBadge(context, isAvailable),
-              ),
-            ],
+          // 1. صورة الملعب الفرعي وتاغ الحالة
+          SubPlaceImage(
+            imageUrl: subPlace.imageUrl,
+            isAvailable: isAvailable,
           ),
 
           // 2. تفاصيل الملعب
@@ -111,16 +66,14 @@ class SubPlaceCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildInfoItem(
-                      Icons.payments_outlined,
-                      "${subPlace.pricePerHour.toStringAsFixed(0)} ${context.tr('le')}",
-                      w,
+                    SubPlaceInfoItem(
+                      icon: Icons.payments_outlined,
+                      label: "${subPlace.pricePerHour.toStringAsFixed(0)} ${context.tr('le')}",
                     ),
                     const SizedBox(width: 15),
-                    _buildInfoItem(
-                      Icons.groups_outlined,
-                      "${subPlace.playersNumber} Vs ${subPlace.playersNumber}",
-                      w,
+                    SubPlaceInfoItem(
+                      icon: Icons.groups_outlined,
+                      label: "${subPlace.playersNumber} Vs ${subPlace.playersNumber}",
                     ),
                   ],
                 ),
@@ -132,7 +85,7 @@ class SubPlaceCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onPressed,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorManager.wasabi,
+                      backgroundColor: ColorManager.egyptianEarth,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -153,39 +106,6 @@ class SubPlaceCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildAvailabilityBadge(BuildContext context, bool available) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: available
-            ? Colors.green.withOpacity(0.9)
-            : Colors.red.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        available ? context.tr('available') : context.tr('unavailable'),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(IconData icon, String label, double w) {
-    return Row(
-      children: [
-        Icon(icon, size: w * 0.045, color: ColorManager.wasabi),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white70, fontSize: w * 0.035),
-        ),
-      ],
     );
   }
 }

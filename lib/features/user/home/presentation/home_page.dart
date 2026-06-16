@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hanzbthalk/core/widgets/interactive_user_guide.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/home_drawer.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/home_header.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/home_serachbar.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/repos/home_repo.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/widgets/home_tabs_section.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/widgets/place_list_view.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/core/widgets/home_drawer.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
+import 'package:hanzbthalk/features/user/home/repos/home_repo.dart';
+import 'package:hanzbthalk/features/user/home/widgets/home_tabs_section.dart';
+import 'package:hanzbthalk/features/user/home/widgets/place_list_view.dart';
+import 'package:hanzbthalk/features/user/home/widgets/category_list.dart';
+import 'package:hanzbthalk/features/user/home/widgets/catchy_filter_banner.dart';
+import 'package:hanzbthalk/features/user/home/widgets/home_sticky_header.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,9 +21,53 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // الكاتيجوري محتفظين بقيمتها هنا بره الـ build
   String selectedCategory = 'all';
   String selectedTab = 'nearby';
+
+  final GlobalKey _logoKey = GlobalKey();
+  final GlobalKey _menuButtonKey = GlobalKey();
+  final GlobalKey _bookingsButtonKey = GlobalKey();
+  final GlobalKey _searchBarKey = GlobalKey();
+  final GlobalKey _filterBannerKey = GlobalKey();
+  final GlobalKey _categoriesKey = GlobalKey();
+  final GlobalKey _tabsKey = GlobalKey();
+  final GlobalKey _firstCardKey = GlobalKey();
+
+  bool _showGuide = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstTimeGuide();
+  }
+
+  Future<void> _checkFirstTimeGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final bool shown = prefs.getBool('first_time_guide_shown') ?? false;
+      if (!shown) {
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            setState(() {
+              _showGuide = true;
+            });
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _finishGuide() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('first_time_guide_shown', true);
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _showGuide = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,132 +75,89 @@ class _HomePageState extends State<HomePage> {
     final w = MediaQuery.of(context).size.width;
 
     return BlocProvider<HomeCubit>(
-      // 1. هنا بنكريت الـ Cubit الأساسي للشاشة والـ Widgets اللي جواها
       create: (context) => HomeCubit(HomeRepoImpl(BookingService())),
       child: Scaffold(
-        drawer: const HomeDrawer(),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              BackGround(h: h, w: w),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: w * 0.04),
+        drawer: HomeDrawer(
+          onReplayGuide: () {
+            setState(() {
+              _showGuide = true;
+            });
+          },
+        ),
+        body: Stack(
+          children: [
+            BackGround(h: h, w: w, category: selectedCategory),
+
+            // 1. Scrollable Content (Banner, Categories, Tabs, PlaceListView)
+            Positioned.fill(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  left: w * 0.04,
+                  right: w * 0.04,
+                  top:
+                      MediaQuery.of(context).padding.top +
+                      145, // app bar + search bar + margins
+                  bottom: 20,
+                ),
                 child: Column(
                   children: [
-                    const HomeHeader(),
-                    const SizedBox(height: 10),
-
-                    // 🚀 2. استخدام الـ Builder هنا هو السر! بيوفر blocContext تحت الـ Provider مباشرة
-                    Builder(
-                      builder: (blocContext) {
-                        return HomeSearchBar(
-                          onChanged: (value) {
-                            // بننادي دالة السيرش باستخدام الـ Context المضمون وبدون setState عشوائي
-                            blocContext.read<HomeCubit>().searchPlaces(
-                              selectedTab: selectedTab,
-                              query: value,
-                              category: selectedCategory,
-                            );
-                          },
-                        );
+                    CatchyFilterBanner(key: _filterBannerKey),
+                    const SizedBox(height: 15),
+                    CategoryList(
+                      key: _categoriesKey,
+                      selectedCategory: selectedCategory,
+                      onCategoryChanged: (category) {
+                        setState(() {
+                          selectedCategory = category;
+                        });
                       },
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // 3. لستة الكاتيجوريز (لو ضغطت على وحدة، السيرش هيفلتر جواها برضه)
-                    _buildCategoryList(),
-
                     const SizedBox(height: 15),
-                    HomeTabsSection(currentTab: selectedTab),
+                    HomeTabsSection(key: _tabsKey, currentTab: selectedTab),
                     const SizedBox(height: 15),
-
-                    // 4. لستة عرض الملاعب اللي جواها الـ BlocBuilder والـ print بتاعك
-                    Expanded(child: PlaceListView(category: selectedCategory)),
+                    PlaceListView(
+                      category: selectedCategory,
+                      firstCardKey: _firstCardKey,
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+            ),
 
-  Widget _buildCategoryList() {
-    final categories = [
-      {'name': 'All', 'icon': Icons.all_inclusive, 'id': 'all'},
-      {'name': 'Football', 'icon': Icons.sports_soccer, 'id': 'football'},
-      {'name': 'Padel', 'icon': Icons.sports_tennis, 'id': 'padel'},
-      {'name': 'PS', 'icon': Icons.sports_esports, 'id': 'playstation'},
-      {'name': 'Cafe', 'icon': Icons.local_cafe, 'id': 'cafe'},
-    ];
-
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: categories.length,
-        // 🚀 استخدمنا Builder برضه جوه الـ ListView عشان الـ GestureDetector يعرف يوصل للـ Cubit صح
-        itemBuilder: (categoryContext, index) {
-          final category = categories[index];
-          final bool isSelected = selectedCategory == category['id'];
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedCategory = category['id'] as String;
-              });
-
-              // 👑 هنا بننادي الـ Cubit عشان يفلتر بالكاتيجوري الجديدة فوراً من السيرفر
-              // استخدمنا الـ categoryContext المضمون هنا برضه
-              categoryContext.read<HomeCubit>().getPlacesByCat(
-                selectedCategory,
-              );
-            },
-            child: Container(
-              width: 80,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? ColorManager.creasedKhaki.withOpacity(0.3)
-                    : ColorManager.wasabi.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: isSelected
-                      ? ColorManager.creasedKhaki
-                      : ColorManager.creasedKhaki.withOpacity(0.3),
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    category['icon'] as IconData,
-                    size: 30,
-                    color: isSelected
-                        ? ColorManager.egyptianEarth
-                        : ColorManager.wasabi,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category['name'] as String,
-                    style: TextStyle(
-                      color: isSelected
-                          ? ColorManager.egyptianEarth
-                          : ColorManager.wasabi,
-                      fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ],
+            // 2. Fixed Sticky Top Container (App Bar + Search Bar)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: HomeStickyHeader(
+                menuKey: _menuButtonKey,
+                logoKey: _logoKey,
+                bookingsKey: _bookingsButtonKey,
+                searchBarKey: _searchBarKey,
+                selectedCategory: selectedCategory,
+                selectedTab: selectedTab,
               ),
             ),
-          );
-        },
+
+            // 3. User Guide
+            if (_showGuide)
+              InteractiveUserGuide(
+                targetKeys: {
+                  'logo': _logoKey,
+                  'menu': _menuButtonKey,
+                  'bookings': _bookingsButtonKey,
+                  'search': _searchBarKey,
+                  'filters': _filterBannerKey,
+                  'categories': _categoriesKey,
+                  'tabs': _tabsKey,
+                  'firstCard': _firstCardKey,
+                },
+                onFinish: _finishGuide,
+                onSkip: _finishGuide,
+              ),
+          ],
+        ),
       ),
     );
   }

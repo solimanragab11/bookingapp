@@ -1,20 +1,117 @@
 // lib/features/user/home/cubit/home_cubit.dart
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/cubit/home_stats.dart';
-import 'package:remaking_booking_app_trail2/features/user/home/repos/home_repo.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
+import 'package:hanzbthalk/features/user/home/repos/home_repo.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
 
 class HomeCubit extends Cubit<HomeStats> {
   final HomeRepoImpl _homeRepo;
   Timer? _searchDebounce;
   List<PlaceModel> _allPlaces = [];
+  List<SubPlaceModel> _allSubPlaces = [];
   String _selectedTab = 'nearby';
+
+  LatLng? filterLocation;
+  double? filterRadiusKm;
+  String? filterLocationAddress;
+  DateTime? filterDate;
+  String? filterStartHour;
+  String? filterEndHour;
 
   HomeCubit(this._homeRepo) : super(HomeLoading()) {
     fetchPlaces();
+  }
+
+  void clearFilters() {
+    filterLocation = null;
+    filterRadiusKm = null;
+    filterLocationAddress = null;
+    filterDate = null;
+    filterStartHour = null;
+    filterEndHour = null;
+    fetchPlaces(); // Reload all places
+  }
+
+  Future<void> applyMapAndTimeFilters({
+    LatLng? location,
+    double? radiusKm,
+    String? address,
+    DateTime? date,
+    String? startHour,
+    String? endHour,
+  }) async {
+    filterLocation = location;
+    filterRadiusKm = radiusKm;
+    filterLocationAddress = address;
+    filterDate = date;
+    filterStartHour = startHour;
+    filterEndHour = endHour;
+
+    if (isClosed) return;
+    emit(HomeLoading());
+
+    try {
+      final List<PlaceModel> allPlaces = await _homeRepo.getAllPlaces();
+      List<PlaceModel> filtered = List.from(allPlaces);
+
+      // 1. Filter by Location & Radius
+      if (location != null && radiusKm != null) {
+        filtered = filtered.where((place) {
+          double dist = _calculateDistance(
+            location.latitude,
+            location.longitude,
+            place.latitude,
+            place.longitude,
+          );
+          return dist <= radiusKm;
+        }).toList();
+      }
+
+      // 2. Filter by Date & Time slots availability
+      if (date != null && startHour != null && endHour != null) {
+        final dayKey = DateFormat('EEEE dd/MM', 'en').format(date).toLowerCase();
+        final requestedSlots = _generateSlotsInRange(startHour, endHour);
+
+        if (requestedSlots.isNotEmpty) {
+          final allSlots = await _homeRepo.getAllSlots();
+          final slotsMap = { for (var s in allSlots) s.id : s };
+
+          filtered = filtered.where((place) {
+            return place.subPlacesIds.any((subPlaceId) {
+              final subPlaceSlots = slotsMap[subPlaceId];
+              if (subPlaceSlots == null) return false;
+              final freeSlots = subPlaceSlots.freeTimeSlots[dayKey] ?? [];
+              return requestedSlots.every((slot) => freeSlots.contains(slot));
+            });
+          }).toList();
+        }
+      }
+
+      _allPlaces = filtered;
+      _applyTabSortingAndEmit(filtered, _selectedTab);
+    } catch (e) {
+      emit(HomeError(message: e.toString()));
+    }
+  }
+
+  List<String> _generateSlotsInRange(String start, String end) {
+    List<String> slots = [];
+    try {
+      int startH = int.parse(start.split(':')[0]);
+      int endH = int.parse(end.split(':')[0]);
+      if (endH <= startH) return [];
+      for (int h = startH; h < endH; h++) {
+        slots.add("$h:00 - ${h + 1}:00");
+      }
+    } catch (_) {}
+    return slots;
   }
 
   @override
@@ -37,11 +134,11 @@ class HomeCubit extends Cubit<HomeStats> {
 
   // 💰 دالة محمية تجيب أقل سعر ملعب فرعي جوه المكان
   double _getLowestSubPlacePrice(PlaceModel place) {
-    // استخدمنا try-catch عشان لو الداتا جاية ناقصة من الفايربيز الأبلكيشن ميكراشش
     try {
-      if (place.subPlaces.isEmpty) return double.maxFinite;
+      final subPlaces = _allSubPlaces.where((sp) => place.subPlacesIds.contains(sp.id)).toList();
+      if (subPlaces.isEmpty) return double.maxFinite;
 
-      return place.subPlaces
+      return subPlaces
           .map((sub) => (sub.pricePerHour).toDouble())
           .reduce((value, element) => value < element ? value : element);
     } catch (e) {
@@ -68,6 +165,7 @@ class HomeCubit extends Cubit<HomeStats> {
       emit(HomeLoading());
 
       try {
+        await _loadSubPlaces();
         final List<PlaceModel> allPlaces = await _homeRepo.getAllPlaces();
         final lowercaseQuery = query.toLowerCase();
 
@@ -89,11 +187,18 @@ class HomeCubit extends Cubit<HomeStats> {
     });
   }
 
+  Future<void> _loadSubPlaces() async {
+    if (_allSubPlaces.isEmpty) {
+      _allSubPlaces = await _homeRepo.getAllSubPlaces();
+    }
+  }
+
   // 📦 جلب كل الأماكن
   Future<void> fetchPlaces() async {
     if (isClosed) return;
     emit(HomeLoading());
     try {
+      await _loadSubPlaces();
       _allPlaces = await _homeRepo.getAllPlaces();
       _applyTabSortingAndEmit(_allPlaces, _selectedTab);
     } catch (e) {
@@ -106,6 +211,7 @@ class HomeCubit extends Cubit<HomeStats> {
     if (isClosed) return;
     emit(HomeLoading());
     try {
+      await _loadSubPlaces();
       if (cat == 'all') {
         await fetchPlaces();
         return; // 🛑 لازم الـ return دي عشان ما ينزلش يكمل ويعمل request بكلمة 'all'
@@ -180,7 +286,7 @@ class HomeCubit extends Cubit<HomeStats> {
       }
     } catch (e) {
       // لو حصل أي خطأ (زي الـ GPS مقفول)، بنعرض اللستة زي ما هي بدون ترتيب عشان ما نقفلش الأبلكيشن
-      print("Warning in Tab Sorting: $e");
+      debugPrint("Warning in Tab Sorting: $e");
       if (!isClosed) {
         emit(HomeLoaded(places: places, selectedTab: tab));
       }

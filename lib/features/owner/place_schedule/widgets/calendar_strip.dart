@@ -2,18 +2,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/models/slots_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class CalendarStrip extends StatelessWidget {
-  final PlaceModel place;
+  final SlotsModel? slots;
   final DateTime selectedDate;
   final int selectedSubPlaceIndex;
   final ValueChanged<DateTime> onDateSelected;
 
   const CalendarStrip({
     super.key,
-    required this.place,
+    required this.slots,
     required this.selectedDate,
     required this.selectedSubPlaceIndex,
     required this.onDateSelected,
@@ -33,12 +33,11 @@ class CalendarStrip extends StatelessWidget {
         itemBuilder: (context, index) {
           final date = DateTime.now().add(Duration(days: index));
 
-          // dayKey بيفضل دايمًا بالإنجليزي لأنه مفتاح في الـ Map عندك (Database Logic)
-          final dayKey = DateFormat('EEEE', 'en').format(date).toLowerCase();
+          // dayKey بيفضل دايمًا بالإنجليزي مع التاريخ الكامل عشان يتطابق مع الـ Database
+          final dayKey = DateFormat('EEEE dd/MM', 'en').format(date).toLowerCase();
 
-          final subPlace = place.subPlaces[selectedSubPlaceIndex];
           final isFullyBooked =
-              (subPlace.freeTimeSlots[dayKey]?.isEmpty) ?? false;
+              (slots?.freeTimeSlots[dayKey]?.isEmpty) ?? false;
 
           final isSelected = DateUtils.isSameDay(date, selectedDate);
 

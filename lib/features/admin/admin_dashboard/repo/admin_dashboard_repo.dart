@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:hanzbthalk/core/models/place_model.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
+import 'package:hanzbthalk/core/db/admin_services.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
 
 class AdminDashBoardRepo {
   final AdminService _adminServices;
@@ -44,17 +46,19 @@ class AdminDashBoardRepo {
       },
     ).handleError((error) {
       // ✅ الطريقة الصحيحة لالتقاط الأخطاء داخل الـ Streams
-      throw Exception("Repo Error: Failed to fetch live stats -> $error");
+      throw DatabaseException(
+        "Repo Error: Failed to fetch live stats -> $error",
+      );
     });
   }
 
   // --- العمليات التي تظل Future لأنها أكشن لحظي (Delete / Update) ---
 
-  Future<void> deletePlace(String placeId) async {
+  Future<void> deletePlace(PlaceModel place) async {
     try {
-      await _adminServices.deletePlaceFromFirebase(placeId);
+      await _adminServices.completelyDeletePlace(place);
     } catch (e) {
-      throw Exception("Repo Error: Failed to delete place -> $e");
+      throw DatabaseException("Repo Error: Failed to delete place -> $e");
     }
   }
 
@@ -62,7 +66,7 @@ class AdminDashBoardRepo {
     try {
       await _adminServices.updateUserRoleInFirebase(userId, newRole);
     } catch (e) {
-      throw Exception("Repo Error: Failed to update role -> $e");
+      throw DatabaseException("Repo Error: Failed to update role -> $e");
     }
   }
 }

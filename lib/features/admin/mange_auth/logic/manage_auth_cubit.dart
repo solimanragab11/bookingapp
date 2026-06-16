@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/db/admin_services.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/admin/mange_auth/logic/mange_auth_states.dart';
+import 'package:hanzbthalk/core/db/admin_services.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/features/admin/mange_auth/logic/mange_auth_states.dart';
 
 class ManageAuthCubit extends Cubit<ManageAuthState> {
   final AdminService _adminService;
@@ -19,7 +19,6 @@ class ManageAuthCubit extends Cubit<ManageAuthState> {
   // 🔥 دالة البحث الذكية بالرقم مع Debounce لمنع الضغط على الفايربيز
   void searchUsersByPhone(String phone) {
     if (phone.isEmpty) {
-      print("object");
       return;
     }
 
@@ -32,7 +31,6 @@ class ManageAuthCubit extends Cubit<ManageAuthState> {
       try {
         // بنستخدم دالة البحث اللي عندك في الـ Service
         final results = await _adminService.searchUsersByPhone('+2$phone');
-        print(results.toString());
         _users = results;
 
         emit(state.copyWith(users: _users, isLoading: false));
@@ -54,6 +52,9 @@ class ManageAuthCubit extends Cubit<ManageAuthState> {
       ),
     );
     try {
+      if (newRole == 'owner') {
+        newRole = 'owner_b';
+      }
       await _adminService.updateUserRoleInFirebase(userId, newRole);
 
       // تحديث اللستة محلياً في الـ UI فوراً عشان الأدمن يشوف التغيير بمجرد النجاح

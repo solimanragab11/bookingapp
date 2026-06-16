@@ -1,18 +1,21 @@
 import 'dart:async';
 import 'package:intl/intl.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/features/owner/data/repos/owner_repo_impl.dart';
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/repos/pricing_repository.dart';
+import 'package:hanzbthalk/features/owner/repos/owner_repo_impl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/owner/logic/booking_management_cubit/booking_mng_states.dart';
+import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_states.dart';
 import 'package:uuid/uuid.dart';
 
 class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
   final OwnerRepoImpl _ownerRepository;
+  final PricingRepository _pricingRepository;
   StreamSubscription? _placesSubscription;
   List<PlaceModel> places = [];
-  ManageBookingPlaceCubit(this._ownerRepository) : super(ManagePlaceInitial());
+  ManageBookingPlaceCubit(this._ownerRepository, this._pricingRepository)
+    : super(ManagePlaceInitial());
 
   // ---------------------------------------------------------------------------
   // Fetch owner places — live stream
@@ -29,7 +32,7 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
         // بنبعت رسالة الخطأ للـ State
         emit(ManagePlaceError(failureMessage));
       },
-      (placesList) {
+      (placesList) async {
         // لو العملية نجحت (الجانب الأيمن - Right)
         // بنبعت قائمة الأماكن للـ UI
         places = placesList;
@@ -69,7 +72,10 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
         timeSlots: formattedSlots,
         totalPrice: totalPrice,
         paidAmount: deposit,
-        requiredDeposit: _calculateRequiredDeposit(selectedSlots.length),
+        requiredDeposit: _pricingRepository.calculateRequiredDeposit(
+          slotCount: selectedSlots.length,
+          isOwner: true,
+        ),
         isOffer: false,
         priceAfterOffer: totalPrice,
         placeId: placeId,
@@ -172,16 +178,6 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
       if (!isClosed) emit(ManagePlaceError('deletePlaceError'));
       return false;
     }
-  }
-
-  double _calculateRequiredDeposit(int numberOfSlots) {
-    // بنقسم عدد الساعات على 2
-    // ~/ بتدينا الرقم الصحيح (مثلاً لو 3 ساعات، يبقى فيها كام "ساعتين كاملين"؟ فيها 1)
-    // لو عاوز تحسب الساعات الفردية برضه، بنستخدم القسمة العادية
-
-    double deposit = (numberOfSlots / 2) * 50;
-
-    return deposit;
   }
 
   @override

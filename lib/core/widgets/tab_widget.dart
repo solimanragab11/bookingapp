@@ -1,4 +1,4 @@
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:flutter/material.dart';
 
 class TabWidget extends StatelessWidget {
@@ -24,7 +24,7 @@ class TabWidget extends StatelessWidget {
           Text(
             tabName,
             style: TextStyle(
-              fontSize: width * 0.04, // Converted from hardcoded font size
+              fontSize: width * 0.03, // Converted from hardcoded font size
               color: isSelected
                   ? ColorManager.egyptianEarth
                   : ColorManager.wasabi,
@@ -34,6 +34,7 @@ class TabWidget extends StatelessWidget {
             width: width * 0.44,
             height: height * 0.004,
             decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(width * 0.02),
               color: isSelected
                   ? ColorManager.egyptianEarth
                   : ColorManager.wasabi,

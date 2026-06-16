@@ -1,0 +1,313 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================== USERS COLLECTION ====================
+    match /users/{userId} {
+      // User can read their own profile
+      allow read: if request.auth.uid == userId;
+      
+      // User can write their own profile (role modification blocked for users/employees)
+      allow write: if request.auth.uid == userId && 
+                      validateUserData(request.resource.data) &&
+                      (resource == null || request.resource.data.userRole == resource.data.userRole);
+      
+      // Admin can read all users
+      allow read: if isAdmin();
+      allow write: if isAdmin() && validateUserData(request.resource.data);
+    }
+    
+    // ==================== PLACES COLLECTION ====================
+    match /places/{placeId} {
+      // Anyone authenticated can read places, but employees can only read assigned places
+      allow read: if request.auth != null && (!isEmployee() || isAssignedPlace(placeId));
+      
+      // Only owner and admins can write
+      allow create: if isOwnerOrAdmin() && validatePlace(request.resource.data);
+      allow update: if isOwnerOrAdmin() && 
+                       isPlaceOwner(placeId) && 
+                       validatePlace(request.resource.data);
+      allow delete: if isAdmin();
+      
+      // ==================== SUB_PLACES SUBCOLLECTION ====================
+      match /sub_places/{subPlaceId} {
+        // Anyone can read sub_places, but employees can only read assigned places
+        allow read: if request.auth != null && (!isEmployee() || isAssignedPlace(placeId));
+        
+        // Only owner can create/update
+        allow create: if isOwnerOrAdmin() && validateSubPlace(resource.data);
+        allow update: if isOwnerOrAdmin() && 
+                          isPlaceOwner(placeId) && 
+                          validateSubPlace(request.resource.data);
+        allow delete: if isAdmin();
+      }
+    }
+    
+    // ==================== SLOTS COLLECTION ====================
+    match /slots/{slotId} {
+      // Anyone authenticated can read slots
+      allow read: if request.auth != null;
+      
+      // System operations can create/update slots
+      // Only admin or service account can write to slots collection
+      allow create: if isAdmin() || isServiceAccount();
+      allow update: if (isAdmin() || isServiceAccount()) && 
+                        validateSlot(request.resource.data);
+      allow delete: if isAdmin();
+      
+      // After booking transaction: slots status becomes locked
+      allow read: if request.auth != null && 
+                     get(/databases/$(database)/documents/slots/$(slotId)).data.status in ['available', 'locked', 'booked'];
+    }
+    
+    // ==================== BOOKINGS COLLECTION ====================
+    match /bookings/{bookingId} {
+      // User can read only their own bookings
+      allow read: if request.auth.uid == resource.data.userId;
+      
+      // Owner can read bookings for their places
+      allow read: if isOwner() && 
+                     isBookingForOwnersPlace(bookingId);
+
+      // Employee can read bookings for assigned places
+      allow read: if isEmployee() &&
+                     isAssignedPlace(resource.data.placeId);
+      
+      // Admin can read all bookings
+      allow read: if isAdmin();
+      
+      // User can create their own bookings
+      allow create: if request.auth.uid == request.resource.data.userId && 
+                       validateBooking(request.resource.data) &&
+                       !hasConflictingBooking(request.resource.data);
+      
+      // Owner can create bookings for their customers
+      allow create: if isOwner() && 
+                       validateBooking(request.resource.data) &&
+                       !hasConflictingBooking(request.resource.data);
+
+      // Employee can create manual bookings for assigned places if they have createManualBooking permission
+      allow create: if isEmployee() && 
+                       isAssignedPlace(request.resource.data.placeId) &&
+                       getUserData().permissions.createManualBooking == true &&
+                       validateBooking(request.resource.data) &&
+                       !hasConflictingBooking(request.resource.data);
+      
+      // Only the user or owner or authorized employee can update booking
+      allow update: if ((request.auth.uid == resource.data.userId || isOwner()) ||
+                        (isEmployee() && isAssignedPlace(resource.data.placeId) && getUserData().permissions.manageAvailability == true)) && 
+                        validateBooking(request.resource.data);
+      
+      // User or owner or authorized employee can delete/cancel booking
+      allow delete: if (request.auth.uid == resource.data.userId || isOwner()) ||
+                       (isEmployee() && isAssignedPlace(resource.data.placeId) && getUserData().permissions.cancelBooking == true);
+      
+      // Admin can modify any booking
+      allow write: if isAdmin();
+    }
+    
+    // ==================== BOOKING_SLOTS SUBCOLLECTION ====================
+    // Tracks which slots are part of which booking
+    match /bookings/{bookingId}/booking_slots/{slotId} {
+      allow read: if canAccessBooking(bookingId);
+      allow write: if canAccessBooking(bookingId);
+    }
+    
+    // ==================== OFFERS COLLECTION ====================
+    match /offers/{offerId} {
+      // Anyone can read offers
+      allow read: if request.auth != null;
+      
+      // Only admin can manage offers
+      allow create, update, delete: if isAdmin() && validateOffer(request.resource.data);
+    }
+    
+    // ==================== ROLES COLLECTION ====================
+    match /roles/{userId} {
+      // User can read their own role
+      allow read: if request.auth.uid == userId;
+      
+      // Admin can read all roles
+      allow read: if isAdmin();
+      
+      // Allow user to upgrade their own role from owner_b to owner_a
+      allow update: if (request.auth.uid == userId && 
+                        resource.data.role == 'owner_b' && 
+                        request.resource.data.role == 'owner_a') ||
+                       (isAdmin() && validateRole(request.resource.data));
+
+      // Allow user to create their own role document if upgrading from owner_b (cached in users collection)
+      allow create: if (request.auth.uid == userId && 
+                        request.resource.data.role == 'owner_a' &&
+                        get(/databases/$(database)/documents/users/$(userId)).data.userRole == 'owner_b') ||
+                       isAdmin();
+                       
+      allow delete: if isAdmin();
+    }
+    
+    // ==================== AUDIT_LOGS COLLECTION ====================
+    match /audit_logs/{logId} {
+      // Users can only read logs related to their bookings
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+      
+      // System, admin, and users writing their own logs
+      allow create: if request.auth.uid == request.resource.data.userId || isAdmin() || isServiceAccount();
+      allow update, delete: if isAdmin() || isServiceAccount();
+    }
+
+    // ==================== EVENTS COLLECTION ====================
+    match /events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // ==================== SLOT_INVENTORY COLLECTION ====================
+    // Tracks daily inventory of slots
+    match /slot_inventory/{date} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin() || isServiceAccount();
+    }
+    
+    // ==================== HELPER FUNCTIONS ====================
+    
+    // Check if user is admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Check if user is owner (owner or owner_a)
+    function isOwner() {
+      let role = get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role;
+      return role == 'owner' || role == 'owner_a';
+    }
+    
+    // Check if user is admin or owner (owner or owner_a)
+    function isOwnerOrAdmin() {
+      let role = get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role;
+      return role == 'admin' || role == 'owner' || role == 'owner_a';
+    }
+    
+    // Check if this is a service account (for Cloud Functions)
+    function isServiceAccount() {
+      return request.auth.token.iss == 'https://securetoken.google.com/YOUR_PROJECT_ID';
+    }
+    
+    // Check if user is the owner of a place
+    function isPlaceOwner(placeId) {
+      let place = get(/databases/$(database)/documents/places/$(placeId)).data;
+      return place.ownerId == request.auth.uid;
+    }
+    
+    // Check if user can access a booking
+    function canAccessBooking(bookingId) {
+      let booking = get(/databases/$(database)/documents/bookings/$(bookingId)).data;
+      return request.auth.uid == booking.userId || 
+             request.auth.uid == booking.ownerId || 
+             isAdmin() ||
+             (isEmployee() && isAssignedPlace(booking.placeId));
+    }
+    
+    // Check if booking belongs to owner's place
+    function isBookingForOwnersPlace(bookingId) {
+      let booking = get(/databases/$(database)/documents/bookings/$(bookingId)).data;
+      let place = get(/databases/$(database)/documents/places/$(booking.placeId)).data;
+      return place.ownerId == request.auth.uid;
+    }
+    
+    // Check if user has conflicting bookings (prevent double-booking)
+    function hasConflictingBooking(bookingData) {
+      return firestore.query('bookings')
+        .where('userId', '==', bookingData.userId)
+        .where('subPlaceId', '==', bookingData.subPlaceId)
+        .where('status', 'in', ['confirmed', 'pending'])
+        .where('date', '==', bookingData.date)
+        .where('timeSlots', 'array-contains', bookingData.timeSlots[0])
+        .get().size() > 0;
+    }
+    
+    // Validate Place data
+    function validatePlace(placeData) {
+      return placeData.name is string && placeData.name.size() > 0 &&
+             placeData.ownerId is string &&
+             placeData.createdAt is timestamp &&
+             (placeData.description is string || placeData.description == null);
+    }
+    
+    // Validate SubPlace data
+    function validateSubPlace(subPlaceData) {
+      return subPlaceData.name is string &&
+             subPlaceData.pricePerHour is number && subPlaceData.pricePerHour >= 0 &&
+             subPlaceData.capacity is number && subPlaceData.capacity > 0 &&
+             (subPlaceData.imageUrl is string || subPlaceData.imageUrl == null);
+    }
+    
+    // Validate Slot data
+    function validateSlot(slotData) {
+      return slotData.subPlaceId is string &&
+             slotData.date is timestamp &&
+             slotData.startTime is string &&
+             slotData.endTime is string &&
+             slotData.status in ['available', 'locked', 'booked', 'cancelled'] &&
+             slotData.version is number;
+    }
+    
+    // Validate Booking data
+    function validateBooking(bookingData) {
+      return bookingData.userId is string &&
+             bookingData.placeId is string &&
+             bookingData.subPlaceId is string &&
+             bookingData.date is timestamp &&
+             bookingData.timeSlots is list &&
+             bookingData.timeSlots.size() > 0 &&
+             bookingData.totalPrice is number && bookingData.totalPrice >= 0 &&
+             bookingData.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+             (bookingData.bookedBy is string || bookingData.bookedBy == 'user' || bookingData.bookedBy == 'owner') &&
+             (bookingData.offerId is string || bookingData.offerId == null) &&
+             bookingData.createdAt is timestamp;
+    }
+    
+    // Validate User data
+    function validateUserData(userData) {
+      return userData.username is string && userData.username.size() > 0 &&
+             userData.email is string &&
+             userData.phone is string &&
+             (userData.loyaltyPoints is number || userData.loyaltyPoints == null) &&
+             (userData.profileImageUrl is string || userData.profileImageUrl == null);
+    }
+    
+    // Validate Offer data
+    function validateOffer(offerData) {
+      return offerData.code is string && offerData.code.size() > 0 &&
+             offerData.discount is number && offerData.discount > 0 &&
+             offerData.maxUses is number &&
+             offerData.usedCount is number &&
+             offerData.expiresAt is timestamp;
+    }
+    
+    // Validate Role data
+    function validateRole(roleData) {
+      return roleData.role in ['user', 'owner', 'owner_a', 'owner_b', 'employee', 'admin'] &&
+             roleData.updatedAt is timestamp;
+    }
+
+    // Get user doc from users collection
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Check if user is an employee
+    function isEmployee() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().userRole == 'employee';
+    }
+
+    // Check if a place is assigned to the employee
+    function isAssignedPlace(placeId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             placeId in getUserData().assignedPlaceIds;
+    }
+  }
+}

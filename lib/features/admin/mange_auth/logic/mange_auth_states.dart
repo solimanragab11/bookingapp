@@ -1,4 +1,4 @@
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 class ManageAuthState {
   final List<UserModel> users;

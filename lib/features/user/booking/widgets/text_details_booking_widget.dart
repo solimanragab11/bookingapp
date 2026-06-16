@@ -1,15 +1,15 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/text_style_mangare.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
 
 class TextDetailsBookingWidget extends StatelessWidget {
   final double w, h;
   final PlaceModel place;
-  final SubPlace subPlace;
+  final SubPlaceModel subPlace;
   final Map<String, List<String>> availableDaysWithSlots;
   final String? selectedDay;
   final Function(String?) onDaySelected;
@@ -36,10 +36,10 @@ class TextDetailsBookingWidget extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.all(w * 0.05),
             decoration: BoxDecoration(
-              color: ColorManager.cardSurface.withOpacity(0.2), // نفس الشفافية
+              color: ColorManager.cardSurface.withOpacity(0.4),
               borderRadius: BorderRadius.circular(25),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+                color: ColorManager.emeraldGreen.withOpacity(0.25),
                 width: 1.5,
               ),
             ),
@@ -51,18 +51,18 @@ class TextDetailsBookingWidget extends StatelessWidget {
                 Text(
                   '${context.tr('placeColon')} ${place.name}',
                   style: TextStyle(
-                    fontSize: w * 0.06,
+                    fontSize: w * 0.055,
                     fontWeight: FontWeight.bold,
-                    color: ColorManager.wasabi, // لون الوسابي المميز
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  subPlace.id, // اسم القسم أو الملعب الفرعي
+                  _formatSubPlaceId(subPlace.id),
                   style: TextStyle(
-                    fontSize: w * 0.045,
+                    fontSize: w * 0.042,
                     color: Colors.white70,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
 
@@ -154,9 +154,9 @@ class TextDetailsBookingWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: ColorManager.noirDeVigne.withOpacity(0.4),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: ColorManager.emeraldGreen.withOpacity(0.25)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -212,5 +212,18 @@ class TextDetailsBookingWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatSubPlaceId(String id) {
+    if (id.contains('_')) {
+      final parts = id.split('_');
+      if (parts.length > 1) {
+        final rawName = parts.sublist(1).join(' ').trim();
+        return rawName.replaceAllMapped(RegExp(r'(\D+)(\d+)'), (match) {
+          return '${match.group(1)} ${match.group(2)}';
+        }).toUpperCase();
+      }
+    }
+    return id.toUpperCase();
   }
 }

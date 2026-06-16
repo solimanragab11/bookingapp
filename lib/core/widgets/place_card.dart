@@ -1,14 +1,35 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
 import 'package:url_launcher/url_launcher.dart'; // المكتبة المطلوبة لفتح الخرائط
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/cust_button.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/cust_button.dart';
+
+/// Fallback subplace shown when a place has no subplaces loaded yet.
+const _emptySubPlace = SubPlaceModel(
+  id: '',
+  imageUrl: '',
+  pricePerHour: 0.0,
+  playersNumber: 0,
+  slotsIds: [],
+);
+
+/// Picks the subplace to highlight on the card - the cheapest one, since
+/// that's the most useful "starting from" price to show.
+SubPlaceModel _pickDisplaySubPlace(List<SubPlaceModel> subPlaces) {
+  if (subPlaces.isEmpty) return _emptySubPlace;
+
+  return subPlaces.reduce(
+    (cheapest, sp) => sp.pricePerHour < cheapest.pricePerHour ? sp : cheapest,
+  );
+}
 
 class PlaceCard extends StatelessWidget {
   final PlaceModel place;
+  final List<SubPlaceModel> subPlaces;
   final VoidCallback onPressed;
   final bool isAvailable;
 
@@ -17,6 +38,7 @@ class PlaceCard extends StatelessWidget {
     required this.place,
     required this.onPressed,
     required this.isAvailable,
+    this.subPlaces = const [],
   });
 
   // دالة لفتح جوجل مابز بالإحداثيات
@@ -41,9 +63,10 @@ class PlaceCard extends StatelessWidget {
     final h = MediaQuery.of(context).size.height;
     final w = MediaQuery.of(context).size.width;
 
-    final subPlace = place.subPlaces.isNotEmpty ? place.subPlaces[0] : null;
-    final price = subPlace?.pricePerHour.toStringAsFixed(0) ?? "N/A";
-    final players = subPlace?.playersNumber ?? 0;
+    final displaySubPlace = _pickDisplaySubPlace(subPlaces);
+
+    final price = displaySubPlace.pricePerHour.toStringAsFixed(0);
+    final players = displaySubPlace.playersNumber;
 
     return Container(
       margin: EdgeInsets.only(bottom: h * 0.025),
@@ -62,50 +85,99 @@ class PlaceCard extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Container(
-            color: ColorManager.cardSurface.withOpacity(0.05),
+            decoration: BoxDecoration(
+              color: ColorManager.cardSurface.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: ColorManager.emeraldGreen, width: 1.0),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 1. Image Section
-                SizedBox(
-                  height: h * 0.22,
-                  width: double.infinity,
-                  child: place.images.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: place.images[0],
-                          fit: BoxFit.cover,
-                          // ويدجت الـ Loading الناعم المنسق مع ألوانك وهو بيحمل الصورة لأول مرة
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[900],
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    ColorManager.wasabi,
+                Stack(
+                  children: [
+                    SizedBox(
+                      height: h * 0.22,
+                      width: double.infinity,
+                      child: place.images.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: place.images[0],
+                              fit: BoxFit.cover,
+                              // ويدجت الـ Loading الناعم المنسق مع ألوانك وهو بيحمل الصورة لأول مرة
+                              placeholder: (context, url) => Container(
+                                color: ColorManager.noirDeVigne,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        ColorManager.egyptianEarth,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
+                              // ويدجت الـ Error بتاعتك بالظبط لو الرابط باظ أو النت فصل
+                              errorWidget: (context, url, error) => Container(
+                                color: ColorManager.noirDeVigne,
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: ColorManager.noirDeVigne,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: Colors.white54,
+                              ),
                             ),
+                    ),
+                    if (place.hasOffer)
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          // ويدجت الـ Error بتاعتك بالظبط لو الرابط باظ أو النت فصل
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[900],
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.white54,
-                            ),
+                          decoration: BoxDecoration(
+                            color: ColorManager.egyptianEarth,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        )
-                      : Container(
-                          color: Colors.grey[900],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            color: Colors.white54,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.local_offer,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                context.tr('offer'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ),
+                  ],
                 ),
 
                 // 2. Content Section
@@ -137,19 +209,8 @@ class PlaceCard extends StatelessWidget {
                       const Divider(color: Colors.white12, height: 20),
 
                       // Price & Players
-                      Row(
-                        children: [
-                          _buildIconInfo(
-                            Icons.payments_outlined,
-                            "$price ${context.tr('currency', defaultValue: 'EGP')}/hr",
-                            w,
-                          ),
-                          SizedBox(width: w * 0.05),
-                          _buildIconInfo(
-                            Icons.groups_outlined,
-                            "$players Vs $players",
-                            w,
-                          ),
+                      Row(children: [
+  
                         ],
                       ),
 
@@ -193,7 +254,7 @@ class PlaceCard extends StatelessWidget {
                         child: CustButton(
                           h: h,
                           w: w,
-                          color: ColorManager.wasabi,
+                          color: ColorManager.egyptianEarth,
                           onTap: onPressed,
                           size: "mid",
                           lable: context.tr(

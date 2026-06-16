@@ -1,11 +1,12 @@
 // data/repositories/booking_repository_impl.dart
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/subplace.dart';
-import 'package:remaking_booking_app_trail2/features/user/booking/repositories/booking_repository.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
+import 'package:hanzbthalk/features/user/booking/repositories/booking_repository.dart';
 
 // features/user/booking/repositories/booking_repository_impl.dart
 class BookingRepositoryImpl implements IBookingRepository {
@@ -14,7 +15,7 @@ class BookingRepositoryImpl implements IBookingRepository {
   BookingRepositoryImpl(this._bookingService, this._authService);
 
   @override
-  Stream<SubPlace> watchSubPlace(String placeId, String subPlaceId) {
+  Stream<SubPlaceModel> watchSubPlace(String placeId, String subPlaceId) {
     return _bookingService.getSubPlaceStream(placeId, subPlaceId);
   }
 
@@ -88,7 +89,7 @@ class BookingRepositoryImpl implements IBookingRepository {
       );
     } catch (e) {
       // لو حاجة فشلت بنرمي الـ Error عشان الـ Cubit يلقطه ويعرضه لليوزر
-      throw Exception("فشل في إتمام الحجز: ${e.toString()}");
+      throw DatabaseException("Failed to complete booking: ${e.toString()}");
     }
   }
 

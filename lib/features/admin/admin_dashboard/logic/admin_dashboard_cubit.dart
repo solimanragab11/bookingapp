@@ -1,6 +1,7 @@
 import 'dart:async'; // ضروري عشان الـ StreamSubscription
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/features/admin/admin_dashboard/repo/admin_dashboard_repo.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/features/admin/admin_dashboard/repo/admin_dashboard_repo.dart';
 import 'admin_dashboard_state.dart';
 
 class AdminDashboardCubit extends Cubit<AdminDashboardState> {
@@ -33,9 +34,9 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
 
   // ميثود الحذف مش محتاجة تعمل loadDashboardData يدوي خلاص!
   // لأن الـ Stream هيحس بالحذف ويحدث الـ UI لوحده
-  Future<void> deletePlace(String id) async {
+  Future<void> deletePlace(PlaceModel place) async {
     try {
-      await _repository.deletePlace(id);
+      await _repository.deletePlace(place);
       // مفيش داعي لمناداة أي حاجة هنا، الـ Stream قايم بالواجب
     } catch (e) {
       emit(AdminDashboardError("Delete failed: $e"));

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/models/booking_model.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart'; //
+import 'package:hanzbthalk/core/models/booking_model.dart';
+import 'package:hanzbthalk/core/models/place_model.dart'; //
 
 class BookingAnalyticsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -94,7 +94,7 @@ class BookingAnalyticsService {
 
         return PlaceReport(
           placeName:
-              place?.name ?? "Unknown Place", // حماية في حالة لو المكان ممسوح
+              place?.name ?? "unknownPlace", // حماية في حالة لو المكان ممسوح
           placeId: entry.key,
           bookingCount: entry.value.length,
           revenue: calculateTotalRevenue(entry.value),

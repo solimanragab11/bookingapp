@@ -1,32 +1,52 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/routes/routes.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
-import 'package:remaking_booking_app_trail2/core/widgets/background.dart';
-import 'package:remaking_booking_app_trail2/features/user/place_details/cubit/place_details_cubit.dart';
-import 'package:remaking_booking_app_trail2/features/user/place_details/widgets/subplace_card.dart';
-import 'package:remaking_booking_app_trail2/features/user/place_details/widgets/text_details_wdiget.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/features/user/place_details/cubit/place_details_cubit.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/details_glass_button.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_description_widget.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_image_carousel.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/subplaces_list_widget.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/text_details_wdiget.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/db/admin_services.dart';
+import 'package:hanzbthalk/core/models/subplace_model.dart';
 
 class PlaceDetailsScreen extends StatelessWidget {
   final PlaceModel place;
 
   const PlaceDetailsScreen({super.key, required this.place});
 
+  void _sharePlace(BuildContext context, PlaceModel place) {
+    Clipboard.setData(ClipboardData(text: place.locationUrl.isEmpty ? place.name : place.locationUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr('linkCopied'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: ColorManager.egyptianEarth,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
     final w = MediaQuery.of(context).size.width;
-    final imageHeight = h * 0.4; // ارتفاع الصورة الثابتة
+    final imageHeight = h * 0.4;
+    final topPadding = MediaQuery.of(context).padding.top + 10;
 
     return BlocProvider(
       create: (context) => PlaceDetailsCubit(place),
       child: Scaffold(
-        backgroundColor: Colors.black, // أو أي لون أساسي عندك
+        backgroundColor: ColorManager.noirDeVigne,
         body: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('places')
@@ -42,65 +62,30 @@ class PlaceDetailsScreen extends StatelessWidget {
 
             return Stack(
               children: [
-                // 1. الخلفية الأساسية للتطبيق
-                BackGround(h: h, w: w),
+                // 1. Background basic style
+                BackGround(h: h, w: w, category: livePlace.type),
 
-                // 2. الجزء الثابت (الصور)
-                SizedBox(
-                  height: imageHeight,
-                  width: w,
-                  child: CarouselSlider(
-                    items: livePlace.images.map((imageUrl) {
-                      return CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        // ويدجت الـ Loading اللطيفة عشان الـ UI ميفضلش فاضي وهي بتحمل لأول مرة
-                        placeholder: (context, url) => Container(
-                          width: double.infinity,
-                          color: Colors.grey[900],
-                          child: const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  ColorManager.wasabi,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // الـ Error المظبوطة بتاعتك بالظبط لو حصل أي مشكلة في التحميل
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.broken_image, color: Colors.white),
-                      );
-                    }).toList(),
-                    options: CarouselOptions(
-                      height: imageHeight,
-                      viewportFraction: 1.0,
-                      autoPlay: true,
-                    ),
-                  ),
-                ),
+                // 2. Image Carousel Slider
+                PlaceImageCarousel(images: livePlace.images.cast<String>(), height: imageHeight),
 
-                // 3. المحتوى القابل للتمرير
+                // 3. Scrollable Details Sheet
                 SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      // مساحة شفافة بارتفاع الصورة عشان الكلام ميبدأش من فوقها
-                      SizedBox(height: imageHeight),
+                      SizedBox(height: imageHeight - 20),
 
-                      // الحاوية اللي هتشيل البيانات وتغطي الصورة وهي طالعة
                       Container(
                         decoration: BoxDecoration(
-                          color: ColorManager.cardSurface.withOpacity(
-                            0.9,
-                          ), // لون الخلفية اللي هيغطي الصورة
+                          color: ColorManager.cardSurface.withOpacity(0.9),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(30),
+                          ),
+                          border: const Border(
+                            top: BorderSide(
+                              color: ColorManager.emeraldGreen,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         child: Column(
@@ -108,10 +93,29 @@ class PlaceDetailsScreen extends StatelessWidget {
                           children: [
                             const SizedBox(height: 20),
                             TextDetailsWidget(w: w, place: livePlace, h: h),
-                            _buildSectionTitle(context, 'about', w),
-                            _buildDescription(livePlace.description, w, h),
-                            _buildSectionTitle(context, 'availableFields', w),
-                            _buildSubPlacesList(w, h, livePlace),
+                            PlaceDescriptionWidget(description: livePlace.description, w: w, h: h),
+                             FutureBuilder<List<SubPlaceModel>>(
+                              future: getIt<AdminService>().getSubPlacesByIds(livePlace.subPlacesIds),
+                              builder: (context, subPlacesSnapshot) {
+                                if (!subPlacesSnapshot.hasData) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20.0),
+                                      child: CircularProgressIndicator(
+                                        color: ColorManager.wasabi,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final subPlaces = subPlacesSnapshot.data!;
+                                return SubPlacesListWidget(
+                                  place: livePlace,
+                                  subPlaces: subPlaces,
+                                  w: w,
+                                  h: h,
+                                );
+                              },
+                            ),
                             SizedBox(height: h * 0.05),
                           ],
                         ),
@@ -120,16 +124,23 @@ class PlaceDetailsScreen extends StatelessWidget {
                   ),
                 ),
 
-                // 4. زرار الرجوع (لأنه اختفى مع الـ SliverAppBar)
+                // 4. Back button
                 Positioned(
-                  top: MediaQuery.of(context).padding.top + 10,
+                  top: topPadding,
                   left: 15,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.black.withOpacity(0.5),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                  child: DetailsGlassButton(
+                    icon: Icons.arrow_back,
+                    onTap: () => Navigator.pop(context),
+                  ),
+                ),
+
+                // 5. Share button
+                Positioned(
+                  top: topPadding,
+                  right: 15,
+                  child: DetailsGlassButton(
+                    icon: Icons.share_rounded,
+                    onTap: () => _sharePlace(context, livePlace),
                   ),
                 ),
               ],
@@ -137,62 +148,6 @@ class PlaceDetailsScreen extends StatelessWidget {
           },
         ),
       ),
-    );
-  }
-
-  // --- باقي الـ Widgets كما هي في كودك الأصلي ---
-
-  Widget _buildSectionTitle(BuildContext context, String key, double w) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(w * 0.05, w * 0.06, w * 0.05, w * 0.02),
-      child: Text(
-        context.tr(key),
-        style: TextStyle(
-          fontSize: w * 0.05,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDescription(String desc, double w, double h) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-      child: Text(
-        desc,
-        style: TextStyle(
-          height: 1.6,
-          fontSize: w * 0.038,
-          color: Colors.white.withOpacity(0.8),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubPlacesList(double w, double h, PlaceModel livePlace) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
-      itemCount: livePlace.subPlaces.length,
-      itemBuilder: (context, index) {
-        final subPlace = livePlace.subPlaces[index];
-        return SubPlaceCard(
-          place: livePlace,
-          subPlace: subPlace,
-          onPressed: () {
-            Navigator.pushNamed(
-              context,
-              Routes.bookingPage,
-              arguments: {'place': livePlace, 'subPlace': subPlace},
-            );
-          },
-          isAvailable: subPlace.freeTimeSlots.values.any(
-            (list) => list.isNotEmpty,
-          ),
-        );
-      },
     );
   }
 }

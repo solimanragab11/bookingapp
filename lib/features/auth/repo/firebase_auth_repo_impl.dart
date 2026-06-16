@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/auth/repo/auth_repo.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/features/auth/repo/auth_repo.dart';
 
 class FirebaseAuthRepoImpl implements AuthRepo {
   final AuthService _authService;
@@ -95,17 +96,15 @@ class FirebaseAuthRepoImpl implements AuthRepo {
 
     final firebaseUser = credential.user;
     if (firebaseUser == null) {
-      throw Exception('verifyOTP: Firebase user is null after sign-in');
+      throw const UserNotAuthenticatedException('verifyOTP: Firebase user is null after sign-in');
     }
 
-    final userExists = await _authService.checkIfUserExists(firebaseUser.uid);
-
-    if (userExists) {
-      final existing = await _authService.getCurrentUser();
-      if (existing != null) return existing;
-      throw Exception(
-        'verifyOTP: user document missing despite checkIfUserExists returning true',
-      );
+    // Single query to check existence and retrieve the document safely.
+    // If this throws an exception due to network failure, the method will fail and
+    // NOT execute the addUser() below, saving user data from overwrite/corruption!
+    final existing = await _authService.getUserById(firebaseUser.uid);
+    if (existing != null) {
+      return existing;
     }
 
     // Brand-new account — create and persist the Firestore document.

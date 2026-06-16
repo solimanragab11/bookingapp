@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/db/auth_service.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:hanzbthalk/core/db/booking_analytics_service.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
 
 class GlobalDashboardRepository {
   final BookingAnalyticsService _analyticsService;
@@ -23,7 +24,7 @@ class GlobalDashboardRepository {
       return report;
     } catch (e) {
       // رمي Exception واضح يساعدنا في الـ Debugging لو حصلت مشكلة في الـ Firestore
-      throw Exception("❌ فشل في جلب بيانات لوحة التحكم العالمية: $e");
+      throw const DatabaseException("failed_to_load_global_dashboard");
     }
   }
 }

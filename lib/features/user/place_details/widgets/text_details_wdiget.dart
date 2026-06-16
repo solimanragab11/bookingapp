@@ -1,8 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/app_localizations.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_category_chip.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_info_row.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_location_row.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_open_status_badge.dart';
+import 'package:hanzbthalk/features/user/place_details/widgets/place_rating_badge.dart';
 
 class TextDetailsWidget extends StatelessWidget {
   const TextDetailsWidget({
@@ -27,120 +32,104 @@ class TextDetailsWidget extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.all(w * 0.05),
             decoration: BoxDecoration(
-              color: ColorManager.cardSurface.withOpacity(
-                0.2,
-              ), // خلفية شفافة جداً
+              color: ColorManager.cardSurface.withOpacity(0.6), // خلفية شفافة
               borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1.5,
-              ),
+              border: Border.all(color: ColorManager.emeraldGreen, width: 1.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Name and Rating Row
+                // 1. Name, Category, and Rating Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        place.name,
-                        style: TextStyle(
-                          fontSize: w * 0.065,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            place.name,
+                            style: TextStyle(
+                              fontSize: w * 0.065,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          PlaceCategoryChip(type: place.type, w: w),
+                        ],
                       ),
                     ),
-                    _buildRatingBadge(place.rating, w),
+                    const SizedBox(width: 10),
+                    PlaceRatingBadge(rating: place.rating, w: w),
                   ],
                 ),
 
                 const SizedBox(height: 15),
 
                 // 2. Minimum Charge (if no subplaces)
-                if (place.subPlaces.isEmpty) ...[
-                  _buildInfoRow(
-                    Icons.payments_outlined,
-                    '${context.tr('minimumCharge')}: ${place.minimumCharge?.toStringAsFixed(0) ?? "-"} ${context.tr('le')}',
-                    ColorManager.wasabi,
-                    w,
+                if (place.subPlacesIds.isEmpty) ...[
+                  PlaceInfoRow(
+                    icon: Icons.payments_outlined,
+                    text: '${context.tr('minimumCharge')}: ${place.minimumCharge?.toStringAsFixed(0) ?? "-"} ${context.tr('le')}',
+                    iconColor: ColorManager.wasabi,
+                    w: w,
                   ),
                   const SizedBox(height: 12),
                 ],
 
-                // 3. Location info
-                _buildInfoRow(
-                  Icons.location_on_outlined,
-                  "${place.latitude.toStringAsFixed(4)}, ${place.longitude.toStringAsFixed(4)}",
-                  Colors.redAccent,
-                  w,
+                // 3. Location info (Clickable Link)
+                PlaceLocationRow(
+                  icon: Icons.location_on_outlined,
+                  text: place.locationUrl.isEmpty
+                      ? context.tr('viewOnMap')
+                      : place.locationUrl,
+                  iconColor: ColorManager.wasabi,
+                  w: w,
+                  locationUrl: place.locationUrl,
+                  latitude: place.latitude,
+                  longitude: place.longitude,
                 ),
 
                 const SizedBox(height: 12),
 
                 // 4. Opening Hours
-                _buildInfoRow(
-                  Icons.access_time_rounded,
-                  '${context.tr('open')}: ${place.openingTime} → ${place.closingTime}',
-                  Colors.white70,
-                  w,
+                Row(
+                  children: [
+                    Icon(Icons.access_time_rounded, color: ColorManager.creasedKhaki, size: w * 0.055),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            '${context.tr('open')}: ${place.openingTime} → ${place.closingTime}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: w * 0.038,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          PlaceOpenStatusBadge(
+                            openingTime: place.openingTime,
+                            closingTime: place.closingTime,
+                            w: w,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  // ويدجت صغيرة للـ Rating بشكل شيك
-  Widget _buildRatingBadge(double rating, double w) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.star_rounded, color: Colors.amber, size: w * 0.05),
-          const SizedBox(width: 4),
-          Text(
-            rating.toStringAsFixed(1),
-            style: TextStyle(
-              color: Colors.amber,
-              fontWeight: FontWeight.bold,
-              fontSize: w * 0.04,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ويدجت موحدة لصفوف المعلومات
-  Widget _buildInfoRow(IconData icon, String text, Color iconColor, double w) {
-    return Row(
-      children: [
-        Icon(icon, color: iconColor, size: w * 0.055),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: w * 0.038,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

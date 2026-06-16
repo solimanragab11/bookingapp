@@ -1,4 +1,4 @@
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
 
 /// The contract that every auth implementation must fulfil.
 /// Cubits depend only on this — never on Firebase directly.

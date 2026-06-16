@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class SubPlacesListSection extends StatelessWidget {
   final List<Map<String, dynamic>> subPlaces;

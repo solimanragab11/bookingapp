@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/localization/localization_extension.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/localization_extension.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'points_slider_section.dart';
 import 'quick_action_button.dart';
 
@@ -85,12 +85,9 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorManager.cardSurface.withOpacity(0.4),
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
-        ],
-        border: Border.all(color: ColorManager.wasabi.withOpacity(0.3)),
+        border: Border.all(color: ColorManager.emeraldGreen.withOpacity(0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +110,7 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: ColorManager.wasabi,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 12),
@@ -146,14 +143,21 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
           const SizedBox(height: 16),
 
           TextField(
-            controller: _controller, // استخدمنا الـ controller المعرف فوق
+            controller: _controller,
             keyboardType: TextInputType.number,
-            style: TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               labelText: context.tr('customAmount'),
+              labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
               suffixText: context.tr('egp'),
-              border: OutlineInputBorder(
+              suffixStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: ColorManager.emeraldGreen.withOpacity(0.4)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: ColorManager.egyptianEarth),
               ),
             ),
             onChanged: (v) {
@@ -161,7 +165,7 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
             },
           ),
 
-          const Divider(height: 30),
+          const Divider(height: 30, color: Colors.white12),
 
           _buildSummaryRow(
             context.tr('originalTotal'),
@@ -189,7 +193,7 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
           _buildSummaryRow(
             context.tr('remainingForField'),
             "${remainingAmount.toStringAsFixed(0)} ${context.tr('egp')}",
-            color: remainingAmount > 0 ? Colors.orange : ColorManager.wasabi,
+            color: remainingAmount > 0 ? ColorManager.egyptianEarth : ColorManager.wasabi,
           ),
         ],
       ),
@@ -207,13 +211,13 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.7))),
           Text(
             value,
             style: TextStyle(
               fontSize: 13,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: color ?? Colors.black,
+              color: color ?? Colors.white,
             ),
           ),
         ],

@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class HomeStats extends Equatable {
   @override

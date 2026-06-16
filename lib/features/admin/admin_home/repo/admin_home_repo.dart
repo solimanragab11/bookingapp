@@ -1,6 +1,6 @@
 // lib/features/user/home/data/repos/home_repo.dart
-import 'package:remaking_booking_app_trail2/core/db/booking_service.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
+import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
 
 abstract class AdminHomeRepo {
   Future<List<PlaceModel>> getAllPlaces();

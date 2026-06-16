@@ -1,24 +1,27 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:remaking_booking_app_trail2/core/models/place.dart';
-import 'package:remaking_booking_app_trail2/core/models/user_model.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/logic/add_place_state.dart';
-import 'package:remaking_booking_app_trail2/features/admin/add_place/repo/add_place_repo.dart';
+import 'package:hanzbthalk/core/models/place_model.dart';
+import 'package:hanzbthalk/core/models/user_model.dart';
+import 'package:hanzbthalk/features/admin/add_place/logic/add_place_state.dart';
+import 'package:hanzbthalk/features/admin/add_place/repo/add_place_repo.dart';
 
 class AddPlaceCubit extends Cubit<AddPlaceState> {
   final AddPlaceRepo _adminRepository;
   final ImagePicker _picker = ImagePicker();
   Timer? _searchDebounce;
+  StreamSubscription<TaskSnapshot>? _uploadSubscription;
 
   AddPlaceCubit(this._adminRepository) : super(AddPlaceState.initial());
 
   @override
   Future<void> close() {
     _searchDebounce?.cancel();
+    _uploadSubscription?.cancel();
     return super.close();
   }
 
@@ -99,31 +102,35 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
     );
   }
 
-  // ─── Place data ──────────────────────────────────────────────────────────────
+  // --- REPLACE savePlace() with this version ---
 
-  void updatePlace(PlaceModel newPlace) {
-    emit(state.copyWith(place: newPlace, errorMessage: () => null));
-  }
-
-  // ─── Save New Place (Add Mode) ───────────────────────────────────────────────
-
-  Future<void> savePlace() async {
-    // ✅ نضمن تصفير الـ Success والـ Error مع بداية التحميل الجديد
+  Future<void> savePlace(List<Map<String, dynamic>> subPlacesData) async {
     emit(
       state.copyWith(
         isLoading: true,
         isSuccess: false,
         errorMessage: () => null,
+        uploadProgress: 1.0,
       ),
     );
 
     try {
-      await _adminRepository.uploadAndSavePlace(place: state.place);
+      await _adminRepository.uploadAndSavePlace(
+        place: state.place,
+        subPlacesData: subPlacesData,
+        onProgress: (realProgress) {
+          if (!isClosed) {
+            emit(state.copyWith(uploadProgress: realProgress));
+          }
+        },
+      );
+
       if (!isClosed) {
         emit(
           state.copyWith(
             isLoading: false,
-            isSuccess: true, // 🔥 ستصل الآن كاملة ومستقرة للـ UI
+            isSuccess: true,
+            uploadProgress: 100.0,
             errorMessage: () => null,
           ),
         );
@@ -133,24 +140,39 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
     }
   }
 
-  // ─── Update Existing Place (Edit Mode) ───────────────────────────────────────
+  // --- REPLACE updateExistingPlace() with this version ---
 
-  Future<void> updateExistingPlace(PlaceModel place) async {
+  Future<void> updateExistingPlace(
+    PlaceModel place,
+    List<Map<String, dynamic>> subPlacesData,
+  ) async {
     emit(
       state.copyWith(
         isLoading: true,
         isSuccess: false,
         errorMessage: () => null,
+        uploadProgress: 1.0,
       ),
     );
 
     try {
-      await _adminRepository.processPlaceUpdate(updatedPlace: place);
+      await _adminRepository.processPlaceUpdate(
+        updatedPlace: place,
+        subPlacesData: subPlacesData,
+        existingSubPlaces: state.subPlaces,
+        onProgress: (realProgress) {
+          if (!isClosed) {
+            emit(state.copyWith(uploadProgress: realProgress));
+          }
+        },
+      );
+
       if (!isClosed) {
         emit(
           state.copyWith(
             isLoading: false,
-            isSuccess: true, // 🔥 ستصل الآن كاملة ومستقرة للـ UI
+            isSuccess: true,
+            uploadProgress: 100.0,
             errorMessage: () => null,
           ),
         );
@@ -159,6 +181,93 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
       _emitError("Update Place Failed: ${e.toString()}");
     }
   }
+
+  // --- Add this method too (near loadOwnerForEdit) ---
+
+  /// Fetches the [SubPlaceModel]s referenced by [subPlacesIds] and stores
+  /// them in state so the UI can pre-fill the subplaces step and slot
+  /// references (`slotsIds`) can be preserved on save.
+  Future<void> loadSubPlacesForEdit(List<String> subPlacesIds) async {
+    if (subPlacesIds.isEmpty) return;
+
+    try {
+      final subPlaces = await _adminRepository.getSubPlacesByIds(subPlacesIds);
+
+      if (!isClosed) {
+        emit(state.copyWith(subPlaces: subPlaces, errorMessage: () => null));
+      }
+    } catch (e) {
+      _emitError('Failed to load subplaces: ${e.toString()}');
+    }
+  }
+  // ─── Place data ──────────────────────────────────────────────────────────────
+
+  void updatePlace(PlaceModel newPlace) {
+    emit(state.copyWith(place: newPlace, errorMessage: () => null));
+  }
+
+  // ─── 🛰️ الرفع المنفصل والمراقب لحظة بلحظة (Single Dynamic Upload) ───────────
+
+  void uploadSingleImageWithProgress({
+    required File file,
+    required String folderPath,
+  }) {
+    emit(
+      state.copyWith(
+        isLoading: true,
+        isSuccess: false,
+        errorMessage: () => null,
+        uploadProgress: 0.0,
+      ),
+    );
+
+    try {
+      final uploadTask = _adminRepository.startPlaceImageUpload(
+        file: file,
+        folderPath: folderPath,
+      );
+
+      _uploadSubscription?.cancel();
+
+      _uploadSubscription = uploadTask.snapshotEvents.listen(
+        (TaskSnapshot snapshot) async {
+          double progress =
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+
+          if (snapshot.state == TaskState.running) {
+            if (!isClosed) {
+              emit(state.copyWith(uploadProgress: progress));
+            }
+          } else if (snapshot.state == TaskState.success) {
+            final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+            if (!isClosed) {
+              emit(
+                state.copyWith(
+                  isLoading: false,
+                  isSuccess: true,
+                  uploadProgress: 100.0,
+                  place: state.place.copyWith(
+                    images: [...state.place.images, downloadUrl],
+                  ),
+                  errorMessage: () => null,
+                ),
+              );
+            }
+          }
+        },
+        onError: (error) {
+          _emitError("Upload Image Failed: ${error.toString()}");
+        },
+      );
+    } catch (e) {
+      _emitError("Upload Trigger Failed: ${e.toString()}");
+    }
+  }
+
+  // ─── Save New Place (Add Mode) ───────────────────────────────────────────────
+
+  // ─── Update Existing Place (Edit Mode) ───────────────────────────────────────
 
   // ─── Image picking ───────────────────────────────────────────────────────────
 
@@ -189,7 +298,6 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
 
   void reset() => emit(AddPlaceState.initial());
 
-  // 🔥 ميثود جديدة لتصفير الـ Flags يتم استدعاؤها من الـ UI بعد عرض السناك بار أو الانتقال لشاشة أخرى
   void resetStatusFlags() {
     if (!isClosed) {
       emit(state.copyWith(isSuccess: false, errorMessage: () => null));
@@ -201,13 +309,37 @@ class AddPlaceCubit extends Cubit<AddPlaceState> {
   void _emitError(String message) {
     if (isClosed) return;
 
-    // ✅ نكتفي ببعث الخطأ بوضوح وثبات بدون التسبب في سباق الـ microtask المربك للـ UI
     emit(
       state.copyWith(
         isLoading: false,
         isSuccess: false,
+        uploadProgress: 0.0,
         errorMessage: () => message,
       ),
     );
+  }
+
+  void deletePlace(PlaceModel place) {
+    try {
+      emit(
+        state.copyWith(
+          isLoading: true,
+          isSuccess: false,
+          errorMessage: () => null,
+          uploadProgress: 1.0,
+        ),
+      );
+      _adminRepository.completelyDeletePlace(place);
+      emit(
+        state.copyWith(
+          isLoading: false,
+          isSuccess: true,
+          uploadProgress: 100.0,
+          errorMessage: () => null,
+        ),
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+    }
   }
 }

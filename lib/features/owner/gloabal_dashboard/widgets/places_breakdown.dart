@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/db/booking_analytics_service.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/db/booking_analytics_service.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
 class PlacesBreakdown extends StatelessWidget {
   const PlacesBreakdown({super.key, required this.places});
@@ -10,9 +11,9 @@ class PlacesBreakdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "مقارنة أداء الملاعب",
-          style: TextStyle(
+        Text(
+          context.tr('places_performance_comparison', defaultValue: 'Places Performance Comparison'),
+          style: const TextStyle(
             color: Colors.white70,
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -48,11 +49,11 @@ class PlacesBreakdown extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Name: ${place.placeName}",
+                          "${context.tr('place_name_label', defaultValue: 'Name')}: ${place.placeName}",
                           style: const TextStyle(color: Colors.white),
                         ),
                         Text(
-                          "${place.bookingCount} حجز هذا الشهر",
+                          "${place.bookingCount} ${context.tr('bookings_this_month', defaultValue: 'bookings this month')}",
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
@@ -62,7 +63,7 @@ class PlacesBreakdown extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "${place.revenue.toInt()} EGP",
+                    "${place.revenue.toInt()} ${context.tr('egp')}",
                     style: const TextStyle(
                       color: Colors.amber,
                       fontWeight: FontWeight.bold,

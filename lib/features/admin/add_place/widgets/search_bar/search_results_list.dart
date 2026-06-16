@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:remaking_booking_app_trail2/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class SearchResultsList extends StatelessWidget {
   final List results; // List<UserModel>
