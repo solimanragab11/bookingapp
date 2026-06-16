@@ -130,18 +130,65 @@ class AdminService {
 
   String getNewOfferId() => _firestore.collection('offers').doc().id;
 
-  Future<void> saveOffer(OfferModel offer) =>
-      _firestore.collection('offers').doc(offer.id).set(offer.toJson());
+  Future<void> saveOffer(OfferModel offer) async {
+    await _firestore.collection('offers').doc(offer.id).set(offer.toJson());
+    await _firestore.collection('places').doc(offer.placeId).update({'hasOffer': true});
+  }
 
-  Future<void> updateOffer(OfferModel offer) =>
-      _firestoreService.updateDocument(
-        collection: 'offers',
-        docId: offer.id,
-        data: offer.toJson(),
-      );
+  Future<void> updateOffer(OfferModel offer) async {
+    final docSnapshot = await _firestore.collection('offers').doc(offer.id).get();
+    String? oldPlaceId;
+    if (docSnapshot.exists) {
+      oldPlaceId = docSnapshot.data()?['placeId'] as String?;
+    }
 
-  Future<void> deleteOffer(String id) =>
-      _firestoreService.deleteDocument(collection: 'offers', docId: id);
+    await _firestoreService.updateDocument(
+      collection: 'offers',
+      docId: offer.id,
+      data: offer.toJson(),
+    );
+
+    await _firestore.collection('places').doc(offer.placeId).update({'hasOffer': true});
+
+    if (oldPlaceId != null && oldPlaceId != offer.placeId) {
+      final remainingOffers = await _firestore
+          .collection('offers')
+          .where('placeId', isEqualTo: oldPlaceId)
+          .limit(1)
+          .get();
+      final hasOtherOffers = remainingOffers.docs.isNotEmpty;
+      await _firestore
+          .collection('places')
+          .doc(oldPlaceId)
+          .update({'hasOffer': hasOtherOffers});
+    }
+  }
+
+  Future<void> deleteOffer(String id) async {
+    final docSnapshot = await _firestore.collection('offers').doc(id).get();
+    if (docSnapshot.exists) {
+      final data = docSnapshot.data();
+      final placeId = data?['placeId'] as String?;
+
+      await _firestoreService.deleteDocument(collection: 'offers', docId: id);
+
+      if (placeId != null && placeId.isNotEmpty) {
+        final remainingOffers = await _firestore
+            .collection('offers')
+            .where('placeId', isEqualTo: placeId)
+            .limit(1)
+            .get();
+
+        final hasOtherOffers = remainingOffers.docs.isNotEmpty;
+        await _firestore
+            .collection('places')
+            .doc(placeId)
+            .update({'hasOffer': hasOtherOffers});
+      }
+    } else {
+      await _firestoreService.deleteDocument(collection: 'offers', docId: id);
+    }
+  }
 
   Future<List<OfferModel>> getAllOffers() {
     Query query = _firestore

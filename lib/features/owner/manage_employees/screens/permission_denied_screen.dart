@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class ManageEmployeesPermissionDenied extends StatelessWidget {
-  const ManageEmployeesPermissionDenied({Key? key}) : super(key: key);
+  const ManageEmployeesPermissionDenied({super.key});
 
   @override
   Widget build(BuildContext context) {

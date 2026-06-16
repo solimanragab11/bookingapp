@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/db/auth_service.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
-import 'package:hanzbthalk/core/models/user_model.dart';
 import 'package:hanzbthalk/core/routes/routes.dart';
 import 'package:hanzbthalk/core/services/permission_service.dart';
 import 'package:hanzbthalk/core/models/place_model.dart';
