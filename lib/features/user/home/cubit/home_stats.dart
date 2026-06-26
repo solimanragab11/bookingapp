@@ -13,12 +13,18 @@ class HomeLoading extends HomeStats {}
 class HomeLoaded extends HomeStats {
   final List<PlaceModel> places;
   final String selectedTab;
+  final bool isLoadingMore;
+  final bool hasMore;
 
-  HomeLoaded({required this.places, this.selectedTab = "nearby"});
+  HomeLoaded({
+    required this.places,
+    this.selectedTab = "nearby",
+    this.isLoadingMore = false,
+    this.hasMore = true,
+  });
 
-  // 🔥 السطرين دول بيخلوا الـ Bloc يعرف إن الـ State اتغيرت لو لستة الملاعب اتغيرت!
   @override
-  List<Object?> get props => [places, selectedTab];
+  List<Object?> get props => [places, selectedTab, isLoadingMore, hasMore];
 }
 
 class HomeError extends HomeStats {

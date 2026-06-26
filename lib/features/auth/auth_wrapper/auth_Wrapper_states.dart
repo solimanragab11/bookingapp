@@ -48,3 +48,16 @@ class AuthFailure extends AuthState {
 class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
+
+class AuthOtpSent extends AuthState {
+  final String verificationId;
+
+  const AuthOtpSent(this.verificationId);
+
+  @override
+  List<Object?> get props => [verificationId];
+}
+
+class AuthResetPinSuccess extends AuthState {
+  const AuthResetPinSuccess();
+}

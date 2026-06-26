@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -21,7 +23,12 @@
         <meta-data 
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyChGf4oMD0jeqxDEgmoQdsfVeoVu9gl_SE"/>
-
+<meta-data
+    android:name="com.google.firebase.messaging.default_notification_icon"
+    android:resource="@mipmap/ic_launcher" />
+<meta-data
+    android:name="com.google.firebase.messaging.default_notification_channel_id"
+    android:value="hanzbthalk_main_channel" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

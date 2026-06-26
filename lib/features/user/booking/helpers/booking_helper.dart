@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/features/user/booking/cubit/booking_cubit.dart';
 import 'package:hanzbthalk/features/user/payment/payment_service.dart';
 import 'package:hanzbthalk/features/user/payment/payment_web_view.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 import 'package:hanzbthalk/core/localization/localization_extension.dart';
 
 mixin BookingHelper {
@@ -16,9 +17,11 @@ mixin BookingHelper {
 
   // دالة إظهار الرسائل
   void showSnackBar(BuildContext context, String msg, Color color) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    if (color == Colors.red) {
+      SnackBarUtils.showError(context, msg);
+    } else {
+      SnackBarUtils.showSuccess(context, msg);
+    }
   }
 
   // الدالة الأساسية للدفع

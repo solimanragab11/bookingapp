@@ -215,7 +215,8 @@ class FirestoreOwnerService {
     required String userId,
     required String orderId,
   }) async {
-    debugPrint('📅 [bookSlots] START — placeId=$placeId subPlaceId=$subPlaceId userId=$userId orderId=$orderId');
+    final String? currentUserId = await _authService.getCurrentUserId();
+    debugPrint('📅 [bookSlots] START — placeId=$placeId subPlaceId=$subPlaceId userId=$userId orderId=$orderId currentUserId=$currentUserId');
     debugPrint('📅 [bookSlots] selectedSlots=$selectedSlots');
 
     // 1. هنجيب الـ SubPlace الأول عشان نعرف الـ Slot ID بتاعه
@@ -275,7 +276,10 @@ class FirestoreOwnerService {
 
       debugPrint('📅 [bookSlots] freeTimeSlots keys: ${freeTimeSlots.keys.toList()}');
 
-      // التأكد إن كل المواعيد لسه "متاحة"
+      final Map<String, dynamic> lockedSlots = Map.from(slotsData['lockedSlots'] ?? {});
+      final now = DateTime.now();
+
+      // التأكد إن كل المواعيد لسه "متاحة" وغير محجوزة مؤقتاً لمستخدم آخر
       for (var entry in selectedSlots.entries) {
         String day = entry.key;
         for (String slot in entry.value) {
@@ -283,9 +287,23 @@ class FirestoreOwnerService {
           bool isAlreadyBooked = bookedTimeSlots.any(
             (b) => b.slots[day]?.contains(slot) ?? false,
           );
-          debugPrint('📅 [bookSlots] Checking slot=$slot day=$day isFree=$isFree isAlreadyBooked=$isAlreadyBooked');
 
-          if (!isFree || isAlreadyBooked) {
+          // التحقق من أن الساعة غير محجوزة مؤقتاً من قبل شخص آخر
+          final String slotId = '${day}_$slot';
+          bool isLockedByOther = false;
+          if (lockedSlots.containsKey(slotId)) {
+            final lockInfo = Map<String, dynamic>.from(lockedSlots[slotId]);
+            final expiresAt = lockInfo['expiresAt'] as Timestamp;
+            final lockUserId = lockInfo['userId'] as String;
+
+            if (lockUserId != userId && lockUserId != currentUserId && expiresAt.toDate().isAfter(now)) {
+              isLockedByOther = true;
+            }
+          }
+
+          debugPrint('📅 [bookSlots] Checking slot=$slot day=$day isFree=$isFree isAlreadyBooked=$isAlreadyBooked isLockedByOther=$isLockedByOther');
+
+          if (!isFree || isAlreadyBooked || isLockedByOther) {
             debugPrint('❌ [bookSlots] Slot conflict: slot=$slot day=$day');
             throw const SlotAlreadyBookedException('msg_already_booked');
           }
@@ -299,11 +317,14 @@ class FirestoreOwnerService {
         bookername: bookerName,
       );
 
-      // سحب الساعات من الـ Free وإضافتها للـ Booked
+      // سحب الساعات من الـ Free وإضافتها للـ Booked ومسح الأقفال الخاصة بها
       for (var entry in selectedSlots.entries) {
         String day = entry.key;
         for (String slot in entry.value) {
           freeTimeSlots[day]?.remove(slot);
+          
+          final String slotId = '${day}_$slot';
+          lockedSlots.remove(slotId);
         }
       }
       bookedTimeSlots.add(newBooking);
@@ -312,6 +333,7 @@ class FirestoreOwnerService {
       transaction.update(slotsRef, {
         'freeTimeSlots': freeTimeSlots,
         'bookedTimeSlots': bookedTimeSlots.map((e) => e.toJson()).toList(),
+        'lockedSlots': lockedSlots,
       });
       debugPrint('✅ [bookSlots] Transaction committed successfully');
     });

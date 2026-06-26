@@ -6,6 +6,8 @@ import 'package:hanzbthalk/core/widgets/background.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper_states.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
+
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -50,12 +52,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         } else if (state is AuthUnauthenticated) {
           _navigate(Routes.login);
         } else if (state is AuthFailure && state.messageKey != 'networkError') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.messageKey),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarUtils.showError(context, state.messageKey);
           // After showing the error, fall back to login so the user is not stuck.
           _navigate(Routes.login);
         }

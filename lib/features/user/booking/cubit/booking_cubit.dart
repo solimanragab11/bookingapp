@@ -9,20 +9,27 @@ import 'package:hanzbthalk/core/models/subplace_model.dart';
 import 'package:hanzbthalk/core/models/user_model.dart';
 import 'package:hanzbthalk/core/repos/pricing_repository.dart';
 import 'package:hanzbthalk/features/user/booking/cubit/booking_states.dart';
+import 'package:hanzbthalk/core/db/app_notification_helper.dart';
+import 'package:hanzbthalk/features/user/booking/services/slot_lock_service.dart';
 import 'package:uuid/uuid.dart';
 
 class BookingCubit extends Cubit<BookingState> {
   final BookingService _bookingService;
   final AuthService _authService;
   final PricingRepository _pricingRepository;
+  final SlotLockService _slotLockService;
   PlaceModel? _place;
   SubPlaceModel? _subPlace;
 
   StreamSubscription? _subPlaceSubscription;
   StreamSubscription? _slotsSubscription;
 
-  BookingCubit(this._bookingService, this._authService, this._pricingRepository)
-    : super(BookingInitial());
+  BookingCubit(
+    this._bookingService,
+    this._authService,
+    this._pricingRepository,
+    this._slotLockService,
+  ) : super(BookingInitial());
 
   // 1. تهيئة الحجز
   void initializeBooking({
@@ -48,11 +55,23 @@ class BookingCubit extends Cubit<BookingState> {
       ),
     );
 
-    // Fetch user points asynchronously and update the state
-    getUserPoints().then((points) {
-      if (state is BookingDataState) {
+    // Fetch user details asynchronously and update the state
+    _authService.getCurrentUser().then((user) {
+      if (user != null && state is BookingDataState) {
         final currentState = state as BookingDataState;
-        emit(currentState.copyWith(userPoints: points));
+        final updatedState = currentState.copyWith(
+          userPoints: user.points,
+          noShowCount: user.noShowCount,
+          penaltyBookingsLeft: user.penaltyBookingsLeft,
+        );
+        emit(updatedState);
+        _calculateAndEmit(
+          currentState: updatedState,
+          newOriginalPrice: updatedState.originalTotalAmount,
+          newSlots: updatedState.selectedBookingSlots,
+          isOffer: updatedState.isOffer,
+          points: updatedState.usedPoints,
+        );
       }
     });
 
@@ -74,7 +93,9 @@ class BookingCubit extends Cubit<BookingState> {
             }
           },
           onError: (error) {
-            debugPrint("❌ BookingCubit: Error watching subplace for ID '${subPlace.id}': $error");
+            debugPrint(
+              "❌ BookingCubit: Error watching subplace for ID '${subPlace.id}': $error",
+            );
             emit(BookingFailure(errorMessage: 'error_occurred'));
           },
         );
@@ -102,7 +123,9 @@ class BookingCubit extends Cubit<BookingState> {
             }
           },
           onError: (error) {
-            debugPrint("❌ BookingCubit: Error watching slots for ID '$slotsId': $error");
+            debugPrint(
+              "❌ BookingCubit: Error watching slots for ID '$slotsId': $error",
+            );
             emit(BookingFailure(errorMessage: 'noSlotsAvailable'));
           },
         );
@@ -141,20 +164,24 @@ class BookingCubit extends Cubit<BookingState> {
     }
   }
 
-  // 4. اختيار/إلغاء ساعة (Slot)
-  void toggleTimeSlot(String slotId) {
-    if (state is BookingDataState && _subPlace != null) {
-      final currentState = state as BookingDataState;
-      final updatedSlots = Set<String>.from(currentState.selectedBookingSlots);
-      double updatedOriginalPrice = currentState.originalTotalAmount;
+  // 4. اختيار/إلغاء ساعة (Slot) مع القفل المؤقت (Optimistic UI Updates)
+  Future<void> selectSlot(String slotId) async {
+    if (state is! BookingDataState || _subPlace == null) return;
+    final currentState = state as BookingDataState;
 
-      if (updatedSlots.contains(slotId)) {
-        updatedSlots.remove(slotId);
-        updatedOriginalPrice -= _subPlace!.pricePerHour;
-      } else {
-        updatedSlots.add(slotId);
-        updatedOriginalPrice += _subPlace!.pricePerHour;
-      }
+    final userId = await _authService.getCurrentUserId();
+    if (userId == null) {
+      emit(BookingFailure(errorMessage: 'user_not_authenticated'));
+      return;
+    }
+
+    final isSelected = currentState.selectedBookingSlots.contains(slotId);
+
+    if (isSelected) {
+      // --- Deselecting (Optimistic Update) ---
+      // 1. Instantly update the UI
+      final updatedSlots = Set<String>.from(currentState.selectedBookingSlots)..remove(slotId);
+      final double updatedOriginalPrice = currentState.originalTotalAmount - _subPlace!.pricePerHour;
 
       _calculateAndEmit(
         currentState: currentState,
@@ -163,6 +190,127 @@ class BookingCubit extends Cubit<BookingState> {
         isOffer: currentState.isOffer,
         points: currentState.usedPoints,
       );
+
+      // 2. Perform database operation in the background
+      try {
+        await _slotLockService.releaseLockSlot(
+          subPlaceId: _subPlace!.id,
+          slotId: slotId,
+          userId: userId,
+        );
+      } catch (e) {
+        debugPrint("❌ BookingCubit: Error releasing lock in background: $e");
+      }
+      return;
+    }
+
+    // --- Selecting (Optimistic Update) ---
+    // 1. Instantly update the UI (assume success)
+    final updatedSlots = Set<String>.from(currentState.selectedBookingSlots)..add(slotId);
+    final double updatedOriginalPrice = currentState.originalTotalAmount + _subPlace!.pricePerHour;
+
+    _calculateAndEmit(
+      currentState: currentState,
+      newOriginalPrice: updatedOriginalPrice,
+      newSlots: updatedSlots,
+      isOffer: currentState.isOffer,
+      points: currentState.usedPoints,
+    );
+
+    // Emit temporary optimistic success state so snackbar/animations can trigger
+    emit(SlotLockSuccess(
+      messageKey: 'one_minute_to_pay',
+      dataState: state as BookingDataState,
+    ));
+
+    // 2. Perform Firestore transaction in the background
+    try {
+      final success = await _slotLockService.tryLockSlot(
+        subPlaceId: _subPlace!.id,
+        slotId: slotId,
+        userId: userId,
+        durationMinutes: 1,
+      );
+
+      if (!success) {
+        // --- Revert Optimistic Update on Failure ---
+        if (state is BookingDataState) {
+          final freshState = state as BookingDataState;
+          final revertedSlots = Set<String>.from(freshState.selectedBookingSlots)..remove(slotId);
+          final double revertedOriginalPrice = freshState.originalTotalAmount - _subPlace!.pricePerHour;
+
+          _calculateAndEmit(
+            currentState: freshState,
+            newOriginalPrice: revertedOriginalPrice,
+            newSlots: revertedSlots,
+            isOffer: freshState.isOffer,
+            points: freshState.usedPoints,
+          );
+
+          emit(SlotLockFailure(
+            errorMessageKey: 'slot_taken_by_other',
+            dataState: state as BookingDataState,
+          ));
+        }
+      }
+    } catch (e) {
+      // --- Revert Optimistic Update on Exception ---
+      debugPrint("❌ BookingCubit: Exception locking slot: $e");
+      if (state is BookingDataState) {
+        final freshState = state as BookingDataState;
+        final revertedSlots = Set<String>.from(freshState.selectedBookingSlots)..remove(slotId);
+        final double revertedOriginalPrice = freshState.originalTotalAmount - _subPlace!.pricePerHour;
+
+        _calculateAndEmit(
+          currentState: freshState,
+          newOriginalPrice: revertedOriginalPrice,
+          newSlots: revertedSlots,
+          isOffer: freshState.isOffer,
+          points: freshState.usedPoints,
+        );
+
+        emit(SlotLockFailure(
+          errorMessageKey: 'slot_taken_by_other',
+          dataState: state as BookingDataState,
+        ));
+      }
+    }
+  }
+
+  // تمديد القفل إلى 10 دقائق قبل البدء في الدفع
+  Future<bool> proceedToPayment() async {
+    if (state is! BookingDataState || _subPlace == null) return false;
+    final currentState = state as BookingDataState;
+
+    final userId = await _authService.getCurrentUserId();
+    if (userId == null) {
+      emit(BookingFailure(errorMessage: 'user_not_authenticated'));
+      return false;
+    }
+
+    final slotIds = currentState.selectedBookingSlots.toList();
+    if (slotIds.isEmpty) return false;
+
+    // Try to extend locks for all selected slots to 10 minutes
+    final success = await _slotLockService.tryLockSlots(
+      subPlaceId: _subPlace!.id,
+      slotIds: slotIds,
+      userId: userId,
+      durationMinutes: 10,
+    );
+
+    if (success) {
+      emit(PaymentLockSuccess(
+        messageKey: 'ten_minutes_to_pay',
+        dataState: currentState,
+      ));
+      return true;
+    } else {
+      emit(PaymentLockFailure(
+        errorMessageKey: 'lock_expired',
+        dataState: currentState,
+      ));
+      return false;
     }
   }
 
@@ -200,10 +348,29 @@ class BookingCubit extends Cubit<BookingState> {
   void updatePaidAmount(double amount) {
     if (state is BookingDataState) {
       final currentState = state as BookingDataState;
+      final int noShow = currentState.noShowCount;
+      final int penaltyLeft = currentState.penaltyBookingsLeft;
+
+      double minBound;
+      double maxBound;
+
+      if (penaltyLeft > 0) {
+        minBound = currentState.finalAmount;
+        maxBound = currentState.finalAmount;
+      } else if (noShow == 1) {
+        minBound = currentState.minRequiredDeposit;
+        maxBound = currentState.finalAmount;
+      } else {
+        minBound = currentState.minRequiredDeposit;
+        maxBound = currentState.finalAmount;
+      }
+
+      final double clampedAmount = amount.clamp(minBound, maxBound);
+
       emit(
         currentState.copyWith(
-          paidAmount: amount,
-          remainingAmount: (currentState.finalAmount - amount).clamp(
+          paidAmount: clampedAmount,
+          remainingAmount: (currentState.finalAmount - clampedAmount).clamp(
             0.0,
             double.infinity,
           ),
@@ -232,23 +399,51 @@ class BookingCubit extends Cubit<BookingState> {
       isOwner: false,
     );
 
+    final int noShow = currentState.noShowCount;
+    final int penaltyLeft = currentState.penaltyBookingsLeft;
+
+    double finalAmount;
+    double minRequiredDeposit;
+    double paidAmount;
+
+    if (penaltyLeft > 0) {
+      // Level 3: 100% price + 50 LE fine, flexible payment disabled
+      finalAmount = newFinalAmount + 50.0;
+      minRequiredDeposit = newFinalAmount + 50.0;
+      paidAmount = newFinalAmount + 50.0;
+    } else if (noShow == 1) {
+      // Level 2: flexible payment allowed + 50 LE fine
+      finalAmount = newFinalAmount + 50.0;
+      minRequiredDeposit = deposit + 50.0;
+      paidAmount = currentState.paidAmount;
+      if (paidAmount < minRequiredDeposit) {
+        paidAmount = minRequiredDeposit;
+      } else if (paidAmount > finalAmount) {
+        paidAmount = finalAmount;
+      }
+    } else {
+      // Level 1: normal flexible payment
+      finalAmount = newFinalAmount;
+      minRequiredDeposit = deposit;
+      paidAmount = currentState.paidAmount;
+      if (paidAmount < minRequiredDeposit) {
+        paidAmount = minRequiredDeposit;
+      } else if (paidAmount > finalAmount) {
+        paidAmount = finalAmount;
+      }
+    }
+
     emit(
       currentState.copyWith(
         originalTotalAmount: newOriginalPrice,
-        finalAmount: newFinalAmount,
+        finalAmount: finalAmount,
         selectedBookingSlots: newSlots,
         isOffer: isOffer,
         usedPoints: points,
-        minRequiredDeposit: deposit,
+        minRequiredDeposit: minRequiredDeposit,
         requiredDeposit: deposit,
-        // لو المبلغ المكتوب أكبر من السعر الجديد، بننزله للسعر الجديد
-        paidAmount: currentState.paidAmount > newFinalAmount
-            ? newFinalAmount
-            : currentState.paidAmount,
-        remainingAmount: (newFinalAmount - currentState.paidAmount).clamp(
-          0.0,
-          double.infinity,
-        ),
+        paidAmount: paidAmount,
+        remainingAmount: (finalAmount - paidAmount).clamp(0.0, double.infinity),
       ),
     );
   }
@@ -304,6 +499,8 @@ class BookingCubit extends Cubit<BookingState> {
         priceAfterOffer: currentState.finalAmount,
         placeId: _place!.id,
         isCash: false,
+        status: 'active',
+        checkInTime: '',
       );
 
       await _bookingService.addBooking(model);
@@ -322,6 +519,30 @@ class BookingCubit extends Cubit<BookingState> {
         ),
         userId: userId,
       );
+
+      if (currentState.penaltyBookingsLeft > 0) {
+        await _bookingService.decrementPenaltyBookingsLeft(userId);
+      }
+
+      // Schedule/refresh local reminders immediately for user's bookings
+      try {
+        final bookings = await _bookingService.getUserBookings(userId);
+        List<Map<String, dynamic>> enrichedBookings = [];
+        for (var b in bookings) {
+          final pId = b['placeId'];
+          if (pId != null) {
+            final placeData = await _bookingService.getPlaceById(pId);
+            if (placeData != null) {
+              b['placeInfo'] = placeData.toJson();
+            }
+          }
+          enrichedBookings.add(b);
+        }
+        await AppNotificationHelper.scheduleRemindersForUser(enrichedBookings, userId);
+        debugPrint('[BookingCubit] confirmBooking — Scheduled reminders for user successfully.');
+      } catch (ne) {
+        debugPrint('⚠️ [BookingCubit] confirmBooking failed to schedule reminders: $ne');
+      }
 
       emit(BookingSuccess(message: 'bookingSuccessMessage'));
     } catch (e) {

@@ -13,4 +13,10 @@ abstract class PricingRepository {
   int calculatePointsToAdd({
     required double finalPrice,
   });
+
+  double calculateRefund({
+    required double amountPaidOnline,
+    required double deposit,
+    required DateTime bookingStartTime,
+  });
 }

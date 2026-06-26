@@ -6,7 +6,7 @@ import 'package:hanzbthalk/core/widgets/brand_logo.dart';
 import 'package:hanzbthalk/core/widgets/lang_button.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 
-import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
 class OwnerMainScreenHeader extends StatelessWidget {
@@ -16,7 +16,9 @@ class OwnerMainScreenHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final currentUser = context.read<AuthCubit>().currentUser;
-    final canManageEmployees = currentUser != null && PermissionService.can(currentUser, 'manageEmployees');
+    final canManageEmployees =
+        currentUser != null &&
+        PermissionService.can(currentUser, 'manageEmployees');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
@@ -30,7 +32,9 @@ class OwnerMainScreenHeader extends StatelessWidget {
               GestureDetector(
                 onTap: () {
                   context.read<AuthCubit>().logout();
-                  Navigator.of(context).pushNamedAndRemoveUntil(Routes.authWrapper, (_) => false);
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil(Routes.authWrapper, (_) => false);
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -90,10 +94,7 @@ class OwnerMainScreenHeader extends StatelessWidget {
           ),
 
           // Central Brand Logo
-          BrandLogo(
-            fontSize: w * 0.06,
-            letterSpacing: 1.2,
-          ),
+          BrandLogo(fontSize: w * 0.06, letterSpacing: 1.2),
 
           // Glassmorphic Translation Toggle Button
           const LanguageToggleButton(),

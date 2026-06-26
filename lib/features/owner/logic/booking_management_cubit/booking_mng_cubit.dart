@@ -80,6 +80,8 @@ class ManageBookingPlaceCubit extends Cubit<ManageBookingPlaceState> {
         priceAfterOffer: totalPrice,
         placeId: placeId,
         isCash: true,
+        status: 'active',
+        checkInTime: '',
       );
 
       // 2. التنفيذ الفعلي في Firebase

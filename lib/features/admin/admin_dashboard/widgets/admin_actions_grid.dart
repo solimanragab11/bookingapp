@@ -56,6 +56,14 @@ class AdminActionsGrid extends StatelessWidget {
           isLogout: false,
         ),
         _ActionCard(
+          title: context.tr("Refund Requests", defaultValue: "Refund Requests"),
+          icon: Icons.monetization_on_outlined,
+          onTap: () {
+            Navigator.pushNamed(context, Routes.refundRequests);
+          },
+          isLogout: false,
+        ),
+        _ActionCard(
           title: context.tr("logout"),
           icon: Icons.logout,
           onTap: () {

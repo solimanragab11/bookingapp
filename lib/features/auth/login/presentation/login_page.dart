@@ -1,4 +1,3 @@
-// top of page change:
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
@@ -10,8 +9,9 @@ import 'package:hanzbthalk/core/widgets/cust_button.dart';
 import 'package:hanzbthalk/core/widgets/cust_textfiled.dart';
 import 'package:hanzbthalk/core/widgets/lang_button.dart';
 import 'package:hanzbthalk/core/widgets/brand_logo.dart';
-import 'package:hanzbthalk/features/auth/login/bloc/login_cubit.dart';
-import 'package:hanzbthalk/features/auth/login/bloc/login_states.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper_states.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,12 +24,9 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
+  final _pinController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   String _appVersion = '';
-
-  // Flag لمنع تكرار فتح الـ BottomSheet
-  // ignore: unused_field
-  bool _otpSheetOpen = false;
 
   @override
   void initState() {
@@ -53,29 +50,8 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _pinController.dispose();
     super.dispose();
-  }
-
-  // ---------------------------------------------------------------------------
-  // OTP bottom sheet logic
-  // ---------------------------------------------------------------------------
-  void _showOtpSheet(String verificationId) {
-    _otpSheetOpen = true;
-
-    final cubit = context.read<LoginCubit>();
-
-    AuthBottomSheet.showOTP(
-      context: context,
-      loginCubit: cubit,
-      phoneNumber: _phoneController.text,
-      onResend: () => cubit.sendLoginOTP(_phoneController.text),
-      onVerify: (smsCode) => cubit.verifyLoginOTP(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      ),
-    ).then((_) {
-      _otpSheetOpen = false;
-    });
   }
 
   Future<void> _launchWebsiteUrl() async {
@@ -106,24 +82,14 @@ class _LoginPageState extends State<LoginPage> {
       ),
       body: Stack(
         children: [
-          BlocListener<LoginCubit, LoginState>(
+          BlocListener<AuthCubit, AuthState>(
             listener: (context, state) {
-              if (state is LoginCodeSent) {
-                _showOtpSheet(state.verificationId);
-              } else if (state is LoginSuccess) {
-                _otpSheetOpen = false;
+              if (state is AuthSuccess) {
                 if (Navigator.canPop(context)) Navigator.pop(context);
                 Navigator.pushReplacementNamed(context, Routes.authWrapper);
-              } else if (state is LoginError) {
-                if (!_otpSheetOpen) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: Text(context.tr(state.messageKey)),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+              } else if (state is AuthFailure) {
+                if (state.messageKey != 'networkError') {
+                  SnackBarUtils.showError(context, state.messageKey);
                 }
               }
             },
@@ -175,57 +141,70 @@ class _LoginPageState extends State<LoginPage> {
                                   }
                                   return null;
                                 },
+                               ),
+                              SizedBox(height: size.height * 0.02),
+                              CustTextField(
+                                controller: _pinController,
+                                hint: context.tr('pin'),
+                                icon: Icons.lock_outline,
+                                textColor: Colors.white,
+                                hintTextColor: Colors.white.withOpacity(0.4),
+                                iconColor: ColorManager.wasabi,
+                                fillColor: ColorManager.cardSurface,
+                                enabledBorderColor: ColorManager.emeraldGreen,
+                                focusedBorderColor: ColorManager.egyptianEarth,
+                                keyboardType: TextInputType.number,
+                                isPassword: true,
+                                maxLength: 6,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return context.tr('pinRequired');
+                                  }
+                                  if (value.trim().length != 6) {
+                                    return context.tr('pinInvalid');
+                                  }
+                                  return null;
+                                },
                               ),
-                              SizedBox(height: size.height * 0.03),
+                              // Forgot PIN text button
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton(
+                                  onPressed: () {
+                                    AuthBottomSheet.showForgotPin(
+                                      context: context,
+                                      authCubit: context.read<AuthCubit>(),
+                                    );
+                                  },
+                                  child: Text(
+                                    context.tr('forgotPin'),
+                                    style: const TextStyle(
+                                      color: ColorManager.creasedKhaki,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: size.height * 0.02),
 
                               // --- الـ BlocBuilder المحدث للزرار الرئيسي ---
-                              BlocBuilder<LoginCubit, LoginState>(
-                                buildWhen: (prev, curr) =>
-                                    curr is LoginSendOTPLoading ||
-                                    curr is LoginInitial ||
-                                    curr is LoginError ||
-                                    curr is LoginCodeSent ||
-                                    curr is LoginResendCountdown ||
-                                    curr is LoginResendEnabled,
+                              BlocBuilder<AuthCubit, AuthState>(
                                 builder: (context, state) {
-                                  final isLoading =
-                                      state is LoginSendOTPLoading;
-                                  // التحقق لو العداد شغال
-                                  bool isCountdown =
-                                      state is LoginResendCountdown;
-                                  String btnLabel = context.tr('login');
-
-                                  if (state is LoginResendCountdown) {
-                                    // عرض الثواني المتبقية على الزرار نفسه
-                                    btnLabel =
-                                        "${context.tr('resendIn')} ${state.seconds}";
-                                  }
+                                  final isLoading = state is AuthLoading;
 
                                   return CustButton(
                                     h: size.height,
                                     w: size.width,
-                                    // لون باهت لو الزرار معطل
-                                    color: isCountdown
-                                        ? Colors.grey
-                                        : ColorManager.egyptianEarth,
+                                    color: ColorManager.egyptianEarth,
                                     size: 'mid',
-                                    lable: btnLabel,
+                                    lable: context.tr('login'),
                                     isLoading: isLoading,
                                     onTap: () {
-                                      final cubit = context.read<LoginCubit>();
-
                                       if (_formKey.currentState!.validate()) {
-                                        // لو العداد شغال والـ verificationId موجود، افتح الـ Sheet بس
-                                        if (isCountdown &&
-                                            cubit.verificationId != null) {
-                                          _showOtpSheet(cubit.verificationId!);
-                                        }
-                                        // لو مفيش عداد، ابعت طلب جديد عادي
-                                        else if (!isCountdown) {
-                                          cubit.sendLoginOTP(
-                                            _phoneController.text,
-                                          );
-                                        }
+                                        context.read<AuthCubit>().loginWithPhoneAndPin(
+                                          phoneNumber: _phoneController.text.trim(),
+                                          pin: _pinController.text.trim(),
+                                        );
                                       }
                                     },
                                   );

@@ -109,7 +109,7 @@ class _BookingSummaryDialogState extends State<BookingSummaryDialog> {
           isBooking ? context.tr('newBooking') : context.tr('confirmDeletion'),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),

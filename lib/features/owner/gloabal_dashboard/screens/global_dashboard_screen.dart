@@ -9,7 +9,7 @@ import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/barchart.dar
 import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/places_breakdown.dart';
 import 'package:hanzbthalk/features/owner/gloabal_dashboard/widgets/summary_card.dart';
 
-import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
 
@@ -29,7 +29,9 @@ class GlobalDashboardScreen extends StatelessWidget {
             child: BlocBuilder<GlobalDashboardCubit, GlobalDashboardState>(
               builder: (context, state) {
                 final currentUser = context.read<AuthCubit>().currentUser;
-                final canViewAnalytics = currentUser != null && PermissionService.can(currentUser, 'viewAnalytics');
+                final canViewAnalytics =
+                    currentUser != null &&
+                    PermissionService.can(currentUser, 'viewAnalytics');
 
                 if (!canViewAnalytics) {
                   return Column(
@@ -38,8 +40,14 @@ class GlobalDashboardScreen extends StatelessWidget {
                       Expanded(
                         child: Center(
                           child: Text(
-                            context.tr('permission_denied', defaultValue: 'Permission Denied'),
-                            style: const TextStyle(color: Colors.white70, fontSize: 16),
+                            context.tr(
+                              'permission_denied',
+                              defaultValue: 'Permission Denied',
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -114,7 +122,10 @@ class GlobalDashboardScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
           ),
           Text(
-            context.tr('global_dashboard_title', defaultValue: 'Places Dashboard'),
+            context.tr(
+              'global_dashboard_title',
+              defaultValue: 'Places Dashboard',
+            ),
             style: const TextStyle(
               color: ColorManager.wasabi,
               fontSize: 22,
@@ -126,7 +137,11 @@ class GlobalDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGlobalSummary(BuildContext context, double revenue, int totalBookings) {
+  Widget _buildGlobalSummary(
+    BuildContext context,
+    double revenue,
+    int totalBookings,
+  ) {
     return Row(
       children: [
         SummaryCard(
@@ -138,7 +153,8 @@ class GlobalDashboardScreen extends StatelessWidget {
         const SizedBox(width: 12),
         SummaryCard(
           title: context.tr('total_bookings', defaultValue: 'Total Bookings'),
-          value: "$totalBookings ${context.tr('bookings_count_unit', defaultValue: 'Bookings')}",
+          value:
+              "$totalBookings ${context.tr('bookings_count_unit', defaultValue: 'Bookings')}",
           color: ColorManager.wasabi,
           icon: Icons.event_available,
         ),

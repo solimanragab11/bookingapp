@@ -7,14 +7,19 @@ import 'package:hanzbthalk/core/style_manger/text_style_mangare.dart';
 import 'package:hanzbthalk/core/widgets/brand_logo.dart';
 import 'package:hanzbthalk/core/widgets/lang_button.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
 
 class HomeDrawer extends StatelessWidget {
   final VoidCallback? onReplayGuide;
 
-  const HomeDrawer({
-    super.key,
-    this.onReplayGuide,
-  });
+  const HomeDrawer({super.key, this.onReplayGuide});
+
+  // 🌍 List of supported governorates (key -> localization key)
+  static const List<Map<String, String>> _governorates = [
+    {'key': 'alexandria', 'labelKey': 'governorate_alexandria'},
+    {'key': 'Damanhour', 'labelKey': 'governorate_Damanhour'},
+    {'key': 'Beni Suef', 'labelKey': 'governorate_Beni Suef'},
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +37,7 @@ class HomeDrawer extends StatelessWidget {
             padding: EdgeInsets.only(top: h * 0.06, bottom: h * 0.03),
             decoration: const BoxDecoration(
               color: ColorManager.noirDeVigne,
-              borderRadius: BorderRadius.only(
-                bottomRight: Radius.circular(50),
-              ),
+              borderRadius: BorderRadius.only(bottomRight: Radius.circular(50)),
               border: Border(
                 bottom: BorderSide(
                   color: ColorManager.emeraldGreen,
@@ -59,9 +62,7 @@ class HomeDrawer extends StatelessWidget {
                 const SizedBox(height: 15),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: BrandLogo(
-                    fontSize: h * 0.035,
-                  ),
+                  child: BrandLogo(fontSize: h * 0.035),
                 ),
               ],
             ),
@@ -78,6 +79,11 @@ class HomeDrawer extends StatelessWidget {
               Navigator.pushNamed(context, Routes.myBookings);
             },
           ),
+
+          const SizedBox(height: 10),
+
+          // 🌍 Governorate Selector
+          _buildGovernorateSection(context, w, h),
 
           const SizedBox(height: 10),
 
@@ -119,12 +125,113 @@ class HomeDrawer extends StatelessWidget {
             ),
             onTap: () {
               context.read<AuthCubit>().logout();
-              Navigator.of(context).pushNamedAndRemoveUntil(Routes.authWrapper, (_) => false);
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(Routes.authWrapper, (_) => false);
             },
           ),
 
           SizedBox(height: h * 0.03),
         ],
+      ),
+    );
+  }
+
+  // 🌍 Governorate Selection Section
+  Widget _buildGovernorateSection(BuildContext context, double w, double h) {
+    final homeCubit = context.read<HomeCubit>();
+    final String currentGovernorate = homeCubit.selectedGovernorate;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.02),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: ColorManager.egyptianEarth.withOpacity(0.15),
+          width: 1.0,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.symmetric(horizontal: w * 0.06),
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          leading: const Icon(
+            Icons.location_city_rounded,
+            color: ColorManager.egyptianEarth,
+            size: 22,
+          ),
+          title: Text(
+            context.tr('select_governorate'),
+            style: TextStyleMangare.headingStyle.copyWith(
+              color: Colors.white,
+              fontSize: h * 0.018,
+              fontWeight: FontWeight.normal,
+            ),
+          ),
+          iconColor: ColorManager.egyptianEarth,
+          collapsedIconColor: Colors.white38,
+          children: _governorates.map((gov) {
+            final bool isSelected = currentGovernorate == gov['key'];
+            return InkWell(
+              onTap: () {
+                homeCubit.changeGovernorate(gov['key']!);
+                Navigator.pop(context); // Close drawer
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? ColorManager.egyptianEarth.withOpacity(0.2)
+                      : Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? ColorManager.egyptianEarth.withOpacity(0.5)
+                        : Colors.transparent,
+                    width: 1.0,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isSelected
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      color: isSelected
+                          ? ColorManager.egyptianEarth
+                          : Colors.white38,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      context.tr(gov['labelKey']!),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white70,
+                        fontSize: 14,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: ColorManager.egyptianEarth,
+                        size: 18,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -161,10 +268,7 @@ class HomeDrawer extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.02),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.05),
-          width: 1.0,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.05), width: 1.0),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -180,7 +284,10 @@ class HomeDrawer extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    context.tr('languageSetting', defaultValue: 'Language / اللغة'),
+                    context.tr(
+                      'languageSetting',
+                      defaultValue: 'Language / اللغة',
+                    ),
                     style: TextStyleMangare.headingStyle.copyWith(
                       color: Colors.white,
                       fontSize: h * 0.018,

@@ -9,6 +9,9 @@ class BasicInfoStep extends StatelessWidget {
   final String? selectedCategory;
   final ValueChanged<String?> onCategoryChanged;
 
+  final String? selectedGovernorate;
+  final ValueChanged<String?> onGovernorateChanged;
+
   final String openingTime;
   final String closingTime;
   final bool isOpen24_7;
@@ -22,6 +25,8 @@ class BasicInfoStep extends StatelessWidget {
     required this.descController,
     required this.selectedCategory,
     required this.onCategoryChanged,
+    required this.selectedGovernorate,
+    required this.onGovernorateChanged,
     required this.openingTime,
     required this.closingTime,
     required this.isOpen24_7,
@@ -94,6 +99,8 @@ class BasicInfoStep extends StatelessWidget {
         ),
         SizedBox(height: size.height * 0.02),
         _buildCategoryDropdown(context),
+        SizedBox(height: size.height * 0.02),
+        _buildGovernorateDropdown(context),
         SizedBox(height: size.height * 0.02),
 
         // ── 24/7 toggle ─────────────────────────────────────────────────────
@@ -259,6 +266,51 @@ class BasicInfoStep extends StatelessWidget {
         );
       }).toList(),
       onChanged: onCategoryChanged,
+      validator: (value) => value == null ? context.tr('fieldRequired') : null,
+    );
+  } // 🎯 ده القوس اللي كان ناقص هنا!
+
+  // ─── Governorate dropdown ───────────────────────────────────────────────────
+
+  Widget _buildGovernorateDropdown(BuildContext context) {
+    final Map<String, String> governorates = {
+      'alexandria': context.tr('governorate_alexandria'),
+      'Damanhour': context.tr('governorate_Damanhour'),
+      'Beni Suef': context.tr('governorate_Beni Suef'),
+    };
+
+    return DropdownButtonFormField<String>(
+      dropdownColor: ColorManager.cardSurface,
+      style: const TextStyle(color: ColorManager.creasedKhaki),
+      decoration: InputDecoration(
+        labelText: context.tr('select_governorate'),
+        labelStyle: const TextStyle(color: ColorManager.wasabi),
+        prefixIcon: const Icon(
+          Icons.location_city_rounded,
+          color: ColorManager.egyptianEarth,
+        ),
+        filled: true,
+        fillColor: ColorManager.cardSurface.withOpacity(0.8),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: ColorManager.emeraldGreen),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(
+            color: ColorManager.egyptianEarth,
+            width: 2,
+          ),
+        ),
+      ),
+      value: selectedGovernorate,
+      items: governorates.entries.map((entry) {
+        return DropdownMenuItem<String>(
+          value: entry.key,
+          child: Text(entry.value),
+        );
+      }).toList(),
+      onChanged: onGovernorateChanged,
       validator: (value) => value == null ? context.tr('fieldRequired') : null,
     );
   }

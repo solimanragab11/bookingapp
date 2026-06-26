@@ -27,4 +27,35 @@ abstract class AuthRepo {
     required String username,
     required String role,
   });
+
+  /// Signs up a user by verifying their phone OTP and linking a 6-digit PIN.
+  Future<UserModel> signUpWithPhoneAndPin({
+    required String verificationId,
+    required String smsCode,
+    required String username,
+    required String role,
+    required String pin,
+    required String phoneNumber,
+  });
+
+  /// Signs in a user directly using their phone number and 6-digit PIN.
+  Future<UserModel> signInWithPhoneAndPin({
+    required String phoneNumber,
+    required String pin,
+  });
+
+  /// Sends an OTP for resetting a PIN after verifying the phone number exists.
+  Future<void> sendResetPinOTP({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
+  });
+
+  /// Resets the user's PIN after validating the OTP verification code.
+  Future<void> resetPin({
+    required String verificationId,
+    required String smsCode,
+    required String phoneNumber,
+    required String newPin,
+  });
 }

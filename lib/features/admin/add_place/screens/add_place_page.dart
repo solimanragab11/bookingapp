@@ -33,6 +33,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
 
   // ─── Step 1 ───────────────────────────────────────────────────────────────
   String? _selectedCategory;
+  String? _selectedGovernorate;
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final _step1FormKey = GlobalKey<FormState>();
@@ -66,6 +67,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     _nameController.text = widget.placeToEdit?.name ?? "";
     _descController.text = widget.placeToEdit?.description ?? "";
     _selectedCategory = widget.placeToEdit?.type;
+    _selectedGovernorate = widget.placeToEdit?.governorate;
     _openingTime = widget.placeToEdit?.openingTime ?? '09:00 AM';
     _closingTime = widget.placeToEdit?.closingTime ?? '11:00 PM';
     _isOpen24_7 = (_openingTime == '00:00 AM' && _closingTime == '00:00 AM');
@@ -123,21 +125,14 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
 
   void _handleCubitListener(BuildContext context, AddPlaceState state) {
     if (state.isSuccess) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Success! Place saved successfully.')),
-      );
+      SnackBarUtils.showSuccess(context, 'Success! Place saved successfully.');
 
       context.read<AddPlaceCubit>().resetStatusFlags();
       Navigator.pop(context);
     }
 
     if (state.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, state.errorMessage!);
 
       context.read<AddPlaceCubit>().resetStatusFlags();
     }
@@ -305,6 +300,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
         if (img is File) return img.path;
         return img.toString();
       }).toList(),
+      governorate: _selectedGovernorate ?? 'alexandria',
       minimumCharge: _minChargeController.text.trim().isNotEmpty
           ? double.tryParse(_minChargeController.text.trim())
           : null,
@@ -414,6 +410,8 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
             descController: _descController,
             selectedCategory: _selectedCategory,
             onCategoryChanged: (val) => setState(() => _selectedCategory = val),
+            selectedGovernorate: _selectedGovernorate,
+            onGovernorateChanged: (val) => setState(() => _selectedGovernorate = val),
             openingTime: _openingTime,
             closingTime: _closingTime,
             isOpen24_7: _isOpen24_7,

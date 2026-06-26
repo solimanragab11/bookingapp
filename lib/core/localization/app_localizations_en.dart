@@ -55,6 +55,8 @@ class AppLocalizationsEn {
     'linkCopied': 'Link copied. Go spam your friends 😎',
 
     'owner_intro_title': 'The Boss Rules 😎',
+    'owner_intro_rules':
+        'Please read and understand the following policies:\n\n1. All registered place information must be correct and accurate.\n2. Cancellation of bookings must be managed according to specific guidelines.\n3. Digital payments are processed securely through the platform.',
     'owner_agree_button': 'Yep, I’m In',
     'owner_decline': 'Nah, Not Today',
     'owner_continue': 'Keep Rolling',
@@ -89,7 +91,7 @@ class AppLocalizationsEn {
 
     'guide_firstCard_title': 'Book in Seconds ⚡',
     'guide_firstCard_desc':
-        'Tap, check, book. Easier than deciding what to watch on Netflix.',
+        'Tap to view prices and book slots instantly! Bookings are Active post-payment. For cash remaining balances, generate a secure 4-digit PIN to show the owner at the field.',
     // Auth & User Profile
     'appName': 'Hanzbthalk', // تأكد من السبيلنج الصحيح للاسم
     'version': 'Version',
@@ -102,6 +104,16 @@ class AppLocalizationsEn {
     'fullName': 'Full Name',
     'phoneNumber': 'Phone Number',
     'forgotPassword': 'Forgot Password?',
+    'pin': '6-Digit PIN',
+    'pinRequired': 'Please enter your 6-digit PIN',
+    'pinInvalid': 'PIN must be exactly 6 digits',
+    'forgotPin': 'Forgot PIN?',
+    'incorrectPin': 'The PIN you entered is incorrect.',
+    'pinResetSuccess': 'PIN reset successfully!',
+    'enterNewPin': 'Enter New PIN',
+    'confirmNewPin': 'Confirm New PIN',
+    'pinsDoNotMatch': 'PINs do not match',
+    'resetPinBtn': 'Reset PIN',
     'dontHaveAccount': 'Don\'t have an account?',
     'alreadyHaveAccount': 'Already have an account?',
     'dontHaveAccountSignUp': 'Don\'t have an account? Sign Up',
@@ -176,6 +188,13 @@ class AppLocalizationsEn {
     'confirmAndBook': 'Confirm and Book',
     'confirmBooking': 'Confirm Booking',
     'notAvailableShort': 'N/A',
+    'one_minute_to_pay': 'Slot temporarily locked for 1 minute to complete your booking.',
+    'slot_taken_by_other': 'Sorry, this slot is temporarily locked by another user.',
+    'ten_minutes_to_pay': 'Lock extended for 10 minutes to complete your payment.',
+    'lock_expired': 'The temporary lock has expired. Please select the slot again.',
+    'slot_busy_now': 'This slot is currently busy with a temporary lock. Try again later.',
+    'in_process_yours': 'Locked by you',
+    'in_process_other': 'Busy',
     'placePlaceholder': 'Place',
     'orderIdLabel': 'ID: #',
     'open': 'Open',
@@ -228,7 +247,7 @@ class AppLocalizationsEn {
     'failedPaymentUrl': 'Failed to prepare payment link',
     'errorProcessingPayment': 'Error processing payment',
     'minDeposit': 'Minimum',
-    'halfPrice': 'Half Price',
+    'halfAmount': 'Half Price',
     'fullPrice': 'Full Price',
     'enterPaymentAmount': 'Enter payment amount',
     'minimumRequiredDeposit': 'Minimum required deposit for booking',
@@ -314,9 +333,6 @@ class AppLocalizationsEn {
     "confirmAccount": "Confirm Account",
 
     // Owner Onboarding
-    "owner_intro_rules":
-        "Please read and understand the following policies:\n\n1. All place registrations must be accurate.\n2. Bookings cancellations must be managed within guidelines.\n3. Digital payments are processed securely through the platform.",
-
     "near": "Near",
     "filteredByAreaTime": "Filtered by location & hours",
 
@@ -337,7 +353,7 @@ class AppLocalizationsEn {
 
     "guide_bookings_title": "Your Booking History 📅",
     "guide_bookings_desc":
-        "Check your ongoing, pending, or historical matches in one place, and rebook in a single tap.",
+        "Manage your matches here. Scan the stadium's QR code (within 1km) to check in. If marked No-Show by mistake, click 'Verify GPS' inside the stadium to restore your status.",
     "guide_search_title": "Instant Search 🔍",
     "guide_search_desc":
         "Type the name or location of any pitch or place to filter venues immediately.",
@@ -428,5 +444,215 @@ class AppLocalizationsEn {
     "manageEmployeesTitle": "Manage Employees",
     "edit_employee_dialog_assigned_places": "Assigned Places",
     "permissions": "Permissions",
+    "booking_details_error": "Could not fetch booking details.",
+    "booking_details_title": "Booking Details",
+    "booker_name": "Booker Name",
+    "booking_time": "Time Slot",
+    "payment_method": "Payment Method",
+    "payment_cash": "Cash",
+    "payment_wallet": "Wallet / Online",
+    "total_price": "Total Price",
+    "paid_amount": "Amount Paid (Deposit)",
+    "currency": "EGP",
+    "contact_customer": "Contact Booker",
+    "whatsapp": "WhatsApp",
+    "call": "Call",
+    "select_for_cancellation": "Select for Cancellation",
+    "bookingRulesTitle": "Booking & Cancellation Policies",
+    "bookingRulesSubtitle":
+        "Please review and agree to the policies before confirming payment:",
+    "ruleCancellation1":
+        "• Cancellation > 6 hours before start: Refund minus 10 EGP admin fee.",
+    "ruleCancellation2":
+        "• Cancellation 2-6 hours before start: Penalty of 50% of deposit per 2-hour block closer to start + 10 EGP.",
+    "ruleCancellation3":
+        "• Cancellation < 2 hours before start: No refund (100% penalty).",
+    "rulePenalty1":
+        "• Level 1 User: Flexible payments enabled with normal deposit bounds.",
+    "rulePenalty2":
+        "• Level 2 User (1 No-Show): Flexible payments allowed but a 50 EGP fine is strictly added.",
+    "rulePenalty3":
+        "• Level 3 User (High Risk): Flexible payment disabled; must pay 100% price + 50 EGP fine online.",
+    "agreeAndPay": "Agree & Pay",
+    "cancelBtn": "Cancel",
+    "confirmCancellation": "Confirm Cancellation",
+    "cancel_success_msg":
+        "Your booking was cancelled, and {} EGP was refunded to your wallet.",
+    "cancel_error_msg":
+        "Could not cancel booking, please check your connection.",
+    "status_updated_successfully": "Status updated successfully.",
+    "no_refund_requests": "No refund requests found.",
+    "refund_requests_title": "Refund Requests",
+    "all_requests": "All Requests",
+    "requested_at": "Requested At",
+    "approve": "Approve",
+    "reject": "Reject",
+    "processing": "Processing...",
+    "no_show_success":
+        "User marked as No Show successfully. 20 points deducted.",
+    "no_show_error": "Failed to update user",
+    "mark_no_show": "Mark No Show",
+    "confirm_no_show_title": "Confirm No Show",
+    "confirm_no_show_msg":
+        "Are you sure you want to mark this booking as a No Show? This will deduct 20 points from the user and increment their penalty level.",
+    "free_cancel_indicator":
+        "Free cancellation minus 10 EGP admin fee for the next {} hours.",
+    "penalty_cancel_indicator":
+        "Cancellation penalty of 50% deposit now active.",
+    "no_refund_indicator":
+        "Ineligible for refund (match starts in less than 2 hours).",
+    "upcoming_bookings_tab": "Upcoming Bookings",
+    "refund_requests_tab": "Refund Requests",
+    "refund_status_pending": "Pending Approval",
+    "refund_status_approved": "Approved & Refunded",
+    "refund_status_rejected": "Rejected",
+    "original_paid": "Original Paid",
+    "no_refund_requests_desc":
+        "You do not have any refund requests at this time.",
+
+    // Recent Updates & Missing Keys
+    "cash_payment_warning":
+        "Please pay the remaining amount in cash to the employee at the field, and show them the following verification PIN to confirm receipt.",
+    "cash_pin_label": "Your verification PIN:",
+    "dispute_no_show_title": "Are you actually at the field?",
+    "dispute_no_show_desc":
+        "The employee marked you as a No-Show. You can override this by verifying your GPS location within the venue boundaries.",
+    "dispute_button": "Verify Attendance via GPS",
+    "checking_gps": "Verifying location...",
+    "dispute_consequences_title": "Confirm No-Show & Consequences",
+    "gps_disabled_error": "Please enable GPS/Location services on your device.",
+    "gps_permission_denied": "Location permission denied.",
+    "gps_permission_denied_forever":
+        "Location permissions are permanently disabled. Please enable them in your device settings.",
+    "penalty_warning_title": "Warning: No-Show Policy ⚠️",
+    "penalty_points_deduction":
+        "• 20 points will be deducted from your balance immediately.",
+    "penalty_l2_warning":
+        "• This is your first infraction. A 50 EGP fine will be automatically added to your next booking.",
+    "penalty_l3_warning":
+        "• This is your second or higher infraction. Flexible payment options will be disabled; you must pay 100% online + 50 EGP fine in advance.",
+    "admit_no_show_btn": "I admit No-Show and accept penalties",
+    "admit_no_show_success":
+        "Admitted successfully. Penalties applied and slot released.",
+    "dispute_success_msg":
+        "GPS verified successfully. Status reset to Attended.",
+    "cash_collection_title": "Confirm Cash Receipt",
+    "cash_collection_info":
+        "Please enter the 4-digit PIN displayed on the customer's app to confirm cash collection.",
+    "enter_pin_label": "Enter PIN",
+    "pin_required_error": "PIN is required",
+    "pin_length_error": "PIN must be exactly 4 digits",
+    "invalid_cash_pin": "The entered PIN is incorrect. Please try again.",
+    "cash_collected_success": "Cash collection confirmed successfully!",
+    "no_show_locked_tooltip": "Locked until 50% of the match duration passes.",
+    "status_pending_no_show": "Pending No-Show Verification",
+    "status_attended": "Attended",
+    "status_no_show": "No Show",
+    "status_canceled": "Cancelled",
+    "status_active": "Active",
+    "msg_one_booking_at_a_time":
+        "You can only select slots from one booking at a time.",
+    "Active": "Active",
+    "Add Place": "Add Place",
+    "Cancel": "Cancel",
+    "Confirm": "Confirm",
+    "EGP": "EGP",
+    "Income": "Income",
+    "Manage Auth": "Manage Permissions",
+    "Mange Places": "Manage Places",
+    "Offers": "Offers",
+    "Owner not selected. Please go back to step 1.":
+        "Owner not selected. Please go back to step 1.",
+    "Places": "Places",
+    "Please add at least one main photo": "Please add at least one main photo",
+    "Please add at least one subplace": "Please add at least one field",
+    "Please fill price and players for field":
+        "Please fill price and players for field",
+    "Please search and select an owner": "Please search and select an owner",
+    "Please select a category": "Please select a category",
+    "Promotions": "Promotions",
+    "Refund Requests": "Refund Requests",
+    "Save": "Save",
+    "Searching ..": "Searching...",
+    "Users": "Users",
+    "Welcome": "Welcome",
+    "activateDiscountHint": "Activate discount hint",
+    "add": "Add",
+    "addEmployeeTitle": "Add Employee",
+    "app_revenue": "App Revenue",
+    "approved": "Approved",
+    "assignedPlaces": "Assigned Places",
+    "closingTime": "Closing Time",
+    "discount": "Discount",
+    "edit_employee_dialog.no_places": "No places found to assign.",
+    "languageSetting": "Language Settings",
+    "manageAuthTitle": "Manage Permissions",
+    "offerDiscount": "Offer Discount",
+    "open24_7": "Open 24/7",
+    "open24_7Subtitle": "This place is open all day every day",
+    "openingTime": "Opening Time",
+    "permission_denied": "Permission Denied",
+    "place": "Place",
+    "points": "Points",
+    "rejected": "Rejected",
+    "remove": "Remove",
+    "username": "Username",
+    "cash_pin_warning_text":
+        "Please pay the remaining amount in cash to the employee at the field, and show them the following verification PIN to confirm receipt.",
+    "checking_gps_progress": "Verifying your location via GPS...",
+    "dispute_button_label": "Verify Attendance via GPS",
+    "expectedRefund": "Expected Refund",
+    "first_no_show_consequence":
+        "This is your first infraction. A 50 EGP fine will be automatically added to your next booking.",
+    "multi_no_show_consequence":
+        "This is your second or higher infraction. Flexible payment options will be disabled; you must pay 100% online + 50 EGP fine in advance.",
+    "pending_no_show_warning_body":
+        "The employee marked you as a No-Show. You can override this by verifying your GPS location within the venue boundaries.",
+    "pending_no_show_warning_title": "Are you actually at the field?",
+    "checkIn": "Check In",
+    "closeBtn": "Close",
+    "confirm_cash_received_btn": "Confirm Cash Received",
+    "current_points_label": "Your current points:",
+    "dispute_too_far_title": "Dispute Failed: Distance Limit Exceeded",
+    "expected_refund": "Expected Refund",
+    "pay_rest_btn": "Pay Rest",
+    "confirm_pay_rest_title": "Confirm Cash Payment",
+    "confirm_pay_rest_msg":
+        "Are you sure you want to confirm receipt of the remaining balance of {} EGP?",
+    "remaining_payment_settled_success":
+        "Remaining balance settled successfully!",
+    "pay_online_btn": "Pay Online",
+    "pay_cash_btn": "Pay Cash",
+    "confirm_pay_cash_title": "Pay Cash at Field",
+    "confirm_pay_cash_msg":
+        "To pay the remaining balance in cash, a verification PIN will be generated. Please show this PIN to the employee at the field to confirm cash receipt. Generate PIN?",
+    "cash_pin_created_title": "Verification PIN Generated",
+    "cash_pin_created_desc":
+        "Please pay the remaining amount in cash to the employee at the field, and show them this PIN code to confirm receipt:",
+    "owner_pay_rest_pin_required":
+        "Please ask the user to click 'Pay Rest' on their app to generate a cash verification PIN.",
+    "search_bookings_hint": "Search by venue or court...",
+    "sort_default": "Default Order",
+    "sort_soonest": "Date: Soonest First",
+    "sort_latest": "Date: Latest First",
+    "sort_price_asc": "Price: Low to High",
+    "sort_price_desc": "Price: High to Low",
+    "filter_all": "All",
+    "filter_active": "Active",
+    "filter_attended": "Attended",
+    "filter_canceled": "Canceled",
+    "filter_no_show": "No-Show",
+    "no_matching_bookings": "No bookings match your search.",
+    "fully_paid_label": "Fully Paid",
+    "unpaid_label": "Unpaid",
+    "paid_label": "Paid",
+    "remaining_label": "Remaining",
+    "total_label": "Total",
+    "governorate_cairo": "Cairo",
+    "governorate_giza": "Giza",
+    "governorate_alexandria": "Alexandria",
+    "governorate_Damanhour": "Damanhour",
+    "governorate_Beni Suef": "Beni Suef",
+    "select_governorate": "Select Governorate",
   };
 }

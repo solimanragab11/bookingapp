@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:hanzbthalk/core/db/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hanzbthalk/core/db/push_notification_service.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
 import 'package:hanzbthalk/core/routes/routes.dart';
@@ -19,19 +20,41 @@ void main() async {
 
   try {
     await Firebase.initializeApp();
-
     debugPrint("Firebase Initialized ✅");
 
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
+    debugPrint("Firestore Offline Persistence Enabled 🚀");
 
-    await setupGetIt();
-    debugPrint("GetIt Initialized ✅");
+    // Always initialize Dependency Injection (setupGetIt) to prevent crashes
+    try {
+      await setupGetIt();
+      debugPrint("GetIt Initialized ✅");
+    } catch (e) {
+      debugPrint("Failed to initialize Dependency Injection: $e ❌");
+    }
+
+    try {
+      await getIt<PushNotificationService>().init();
+      debugPrint("Push Notification Service Initialized ✅");
+    } catch (e) {
+      debugPrint("Failed to initialize Push Notifications: $e ⚠️");
+    }
+
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: kDebugMode
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
+      );
+      debugPrint("App Check Initialized ✅");
+    } catch (e) {
+      debugPrint("Failed to initialize App Check: $e ⚠️");
+    }
   } catch (e) {
-    debugPrint("Error during initialization: $e ❌");
+    debugPrint("Error during Firebase initialization: $e ❌");
   }
 
   runApp(const BookingHubApp());
@@ -42,12 +65,10 @@ class BookingHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = getIt<AuthService>();
-
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthCubit>(
-          create: (context) => AuthCubit(authService)..checkAuthStatus(),
+          create: (context) => getIt<AuthCubit>()..checkAuthStatus(),
         ),
         BlocProvider<LanguageCubit>(create: (context) => LanguageCubit()),
       ],
@@ -80,6 +101,7 @@ class BookingHubApp extends StatelessWidget {
             },
 
             // نظام الراوتنج (Routing)
+            navigatorKey: AppRouter.navigatorKey,
             onGenerateRoute: AppRouter.generateRoute,
             initialRoute: Routes.authWrapper, // البداية من صفحة التسجيل
           );

@@ -1,22 +1,25 @@
-// lib/features/user/home/cubit/home_cubit.dart
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
 import 'package:hanzbthalk/features/user/home/repos/home_repo.dart';
 import 'package:hanzbthalk/core/models/place_model.dart';
-import 'package:hanzbthalk/core/models/subplace_model.dart';
 
 class HomeCubit extends Cubit<HomeStats> {
   final HomeRepoImpl _homeRepo;
   Timer? _searchDebounce;
   List<PlaceModel> _allPlaces = [];
-  List<SubPlaceModel> _allSubPlaces = [];
   String _selectedTab = 'nearby';
+
+  // 🌍 Governorate & Pagination variables
+  String selectedGovernorate = "alexandria";
+  DocumentSnapshot? lastDocument;
+  bool hasMore = true;
+  bool isLoadingMore = false;
 
   LatLng? filterLocation;
   double? filterRadiusKm;
@@ -26,7 +29,7 @@ class HomeCubit extends Cubit<HomeStats> {
   String? filterEndHour;
 
   HomeCubit(this._homeRepo) : super(HomeLoading()) {
-    fetchPlaces();
+    fetchPlaces(isRefresh: true);
   }
 
   void clearFilters() {
@@ -36,7 +39,78 @@ class HomeCubit extends Cubit<HomeStats> {
     filterDate = null;
     filterStartHour = null;
     filterEndHour = null;
-    fetchPlaces(); // Reload all places
+    fetchPlaces(isRefresh: true); // Reload all places for current governorate
+  }
+
+  void changeGovernorate(String governorate) {
+    if (governorate.toLowerCase() != selectedGovernorate.toLowerCase()) {
+      selectedGovernorate = governorate.toLowerCase();
+      fetchPlaces(isRefresh: true);
+    }
+  }
+
+  Future<void> fetchPlaces({bool isRefresh = true}) async {
+    if (isClosed) return;
+    if (isRefresh) {
+      lastDocument = null;
+      hasMore = true;
+      isLoadingMore = false;
+      _allPlaces = [];
+      emit(HomeLoading());
+    }
+    try {
+      final pageResult = await _homeRepo.getPlacesPaginated(
+        governorate: selectedGovernorate,
+        lastDocument: lastDocument,
+        limit: 10,
+      );
+
+      _allPlaces.addAll(pageResult.places);
+      lastDocument = pageResult.lastDocument;
+      hasMore = pageResult.hasMore;
+      isLoadingMore = false;
+
+      _applyTabSortingAndEmit(_allPlaces, _selectedTab);
+    } catch (e) {
+      emit(HomeError(message: e.toString()));
+    }
+  }
+
+  Future<void> fetchNextPage() async {
+    if (isClosed || isLoadingMore || !hasMore) return;
+    isLoadingMore = true;
+
+    if (state is HomeLoaded) {
+      emit(HomeLoaded(
+        places: _allPlaces,
+        selectedTab: _selectedTab,
+        isLoadingMore: true,
+        hasMore: hasMore,
+      ));
+    }
+
+    try {
+      final pageResult = await _homeRepo.getPlacesPaginated(
+        governorate: selectedGovernorate,
+        lastDocument: lastDocument,
+        limit: 10,
+      );
+
+      _allPlaces.addAll(pageResult.places);
+      lastDocument = pageResult.lastDocument;
+      hasMore = pageResult.hasMore;
+      isLoadingMore = false;
+
+      _applyTabSortingAndEmit(_allPlaces, _selectedTab);
+    } catch (e) {
+      isLoadingMore = false;
+      emit(HomeLoaded(
+        places: _allPlaces,
+        selectedTab: _selectedTab,
+        isLoadingMore: false,
+        hasMore: hasMore,
+      ));
+    }
   }
 
   Future<void> applyMapAndTimeFilters({
@@ -58,7 +132,8 @@ class HomeCubit extends Cubit<HomeStats> {
     emit(HomeLoading());
 
     try {
-      final List<PlaceModel> allPlaces = await _homeRepo.getAllPlaces();
+      final List<PlaceModel> allPlaces =
+          await _homeRepo.getPlacesByGovernorate(selectedGovernorate);
       List<PlaceModel> filtered = List.from(allPlaces);
 
       // 1. Filter by Location & Radius
@@ -81,7 +156,7 @@ class HomeCubit extends Cubit<HomeStats> {
 
         if (requestedSlots.isNotEmpty) {
           final allSlots = await _homeRepo.getAllSlots();
-          final slotsMap = { for (var s in allSlots) s.id : s };
+          final slotsMap = {for (var s in allSlots) s.id: s};
 
           filtered = filtered.where((place) {
             return place.subPlacesIds.any((subPlaceId) {
@@ -120,7 +195,6 @@ class HomeCubit extends Cubit<HomeStats> {
     return super.close();
   }
 
-  // 🗺️ دالة مساعدة لحساب المسافة بالكيلومتر
   double _calculateDistance(
     double userLat,
     double userLng,
@@ -132,21 +206,10 @@ class HomeCubit extends Cubit<HomeStats> {
         1000;
   }
 
-  // 💰 دالة محمية تجيب أقل سعر ملعب فرعي جوه المكان
   double _getLowestSubPlacePrice(PlaceModel place) {
-    try {
-      final subPlaces = _allSubPlaces.where((sp) => place.subPlacesIds.contains(sp.id)).toList();
-      if (subPlaces.isEmpty) return double.maxFinite;
-
-      return subPlaces
-          .map((sub) => (sub.pricePerHour).toDouble())
-          .reduce((value, element) => value < element ? value : element);
-    } catch (e) {
-      return double.maxFinite;
-    }
+    return place.minimumCharge ?? 0.0;
   }
 
-  // 🔍 الدالة الأساسية للبحث
   void searchPlaces({
     required String query,
     required String category,
@@ -165,21 +228,17 @@ class HomeCubit extends Cubit<HomeStats> {
       emit(HomeLoading());
 
       try {
-        await _loadSubPlaces();
-        final List<PlaceModel> allPlaces = await _homeRepo.getAllPlaces();
+        final List<PlaceModel> allPlaces =
+            await _homeRepo.getPlacesByGovernorate(selectedGovernorate);
         final lowercaseQuery = query.toLowerCase();
 
-        // 1. الفلترة الأساسية
         List<PlaceModel> filteredResults = allPlaces.where((place) {
           bool matchesQuery = place.name.toLowerCase().contains(lowercaseQuery);
           bool matchesCategory = category == 'all' || place.type == category;
           return matchesQuery && matchesCategory;
         }).toList();
 
-        // 2. تحديث اللستة الأساسية عشان selectTab تستخدمها لو اليوزر غير التاب بدون بحث
         _allPlaces = filteredResults;
-
-        // 3. بننادي على دالة ترتيب التابس عشان نطبق اللوجيك بتاع الـ Tabs
         _applyTabSortingAndEmit(filteredResults, _selectedTab);
       } catch (e) {
         emit(HomeError(message: e.toString()));
@@ -187,55 +246,35 @@ class HomeCubit extends Cubit<HomeStats> {
     });
   }
 
-  Future<void> _loadSubPlaces() async {
-    if (_allSubPlaces.isEmpty) {
-      _allSubPlaces = await _homeRepo.getAllSubPlaces();
-    }
-  }
 
-  // 📦 جلب كل الأماكن
-  Future<void> fetchPlaces() async {
-    if (isClosed) return;
-    emit(HomeLoading());
-    try {
-      await _loadSubPlaces();
-      _allPlaces = await _homeRepo.getAllPlaces();
-      _applyTabSortingAndEmit(_allPlaces, _selectedTab);
-    } catch (e) {
-      emit(HomeError(message: e.toString()));
-    }
-  }
 
-  // 🏷️ جلب الأماكن حسب الفئة
   Future<void> getPlacesByCat(String cat) async {
     if (isClosed) return;
     emit(HomeLoading());
     try {
-      await _loadSubPlaces();
       if (cat == 'all') {
-        await fetchPlaces();
-        return; // 🛑 لازم الـ return دي عشان ما ينزلش يكمل ويعمل request بكلمة 'all'
+        await fetchPlaces(isRefresh: true);
+        return;
       }
-      _allPlaces = await _homeRepo.getPlacesByCat(cat);
+      final allPlaces =
+          await _homeRepo.getPlacesByGovernorate(selectedGovernorate);
+      _allPlaces = allPlaces.where((p) => p.type == cat).toList();
       _applyTabSortingAndEmit(_allPlaces, _selectedTab);
     } catch (e) {
       emit(HomeError(message: e.toString()));
     }
   }
 
-  // 📑 عند الضغط على أي Tab (بدون ما يكتب في السيرش)
   Future<void> selectTab(String tab) async {
     _selectedTab = tab;
     if (isClosed) return;
 
-    // بناخد نسخة من اللستة الحالية عشان نرتبها بدون ما نضرب الداتا الأصلية
     List<PlaceModel> currentPlaces = List.from(_allPlaces);
 
-    emit(HomeLoading()); // بندي لودينج خفيف عشان اليوزر يحس بتغيير التاب
+    emit(HomeLoading());
     await _applyTabSortingAndEmit(currentPlaces, tab);
   }
 
-  // 👑 المايسترو: دالة خاصة بتطبيق ترتيب الـ Tabs عشان نمنع تكرار الكود
   Future<void> _applyTabSortingAndEmit(
     List<PlaceModel> places,
     String tab,
@@ -244,7 +283,6 @@ class HomeCubit extends Cubit<HomeStats> {
 
     try {
       if (tab == "nearby") {
-        // حماية صلاحيات الموقع
         LocationPermission permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
@@ -282,13 +320,22 @@ class HomeCubit extends Cubit<HomeStats> {
       }
 
       if (!isClosed) {
-        emit(HomeLoaded(places: sortedPlaces, selectedTab: tab));
+        emit(HomeLoaded(
+          places: sortedPlaces,
+          selectedTab: tab,
+          isLoadingMore: isLoadingMore,
+          hasMore: hasMore,
+        ));
       }
     } catch (e) {
-      // لو حصل أي خطأ (زي الـ GPS مقفول)، بنعرض اللستة زي ما هي بدون ترتيب عشان ما نقفلش الأبلكيشن
       debugPrint("Warning in Tab Sorting: $e");
       if (!isClosed) {
-        emit(HomeLoaded(places: places, selectedTab: tab));
+        emit(HomeLoaded(
+          places: places,
+          selectedTab: tab,
+          isLoadingMore: isLoadingMore,
+          hasMore: hasMore,
+        ));
       }
     }
   }

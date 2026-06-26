@@ -96,6 +96,8 @@ class BookingDataState extends BookingState {
   final int usedPoints;
   final int userPoints;
   final bool isOffer;
+  final int noShowCount;
+  final int penaltyBookingsLeft;
 
   BookingDataState({
     this.place,
@@ -113,6 +115,8 @@ class BookingDataState extends BookingState {
     this.paidAmount = 0.0,
     this.remainingAmount = 0.0,
     this.isOffer = false,
+    this.noShowCount = 0,
+    this.penaltyBookingsLeft = 0,
   });
 
   BookingDataState copyWith({
@@ -131,6 +135,8 @@ class BookingDataState extends BookingState {
     int? userPoints,
     bool? isOffer,
     double? pricePerhour,
+    int? noShowCount,
+    int? penaltyBookingsLeft,
   }) {
     return BookingDataState(
       place: place ?? this.place,
@@ -148,6 +154,112 @@ class BookingDataState extends BookingState {
       userPoints: userPoints ?? this.userPoints,
       isOffer: isOffer ?? this.isOffer,
       pricePerhour: pricePerhour ?? this.pricePerhour,
+      noShowCount: noShowCount ?? this.noShowCount,
+      penaltyBookingsLeft: penaltyBookingsLeft ?? this.penaltyBookingsLeft,
     );
   }
+}
+
+class SlotLockSuccess extends BookingDataState {
+  final String messageKey;
+  SlotLockSuccess({
+    required this.messageKey,
+    required BookingDataState dataState,
+  }) : super(
+         place: dataState.place,
+         liveSubPlace: dataState.liveSubPlace,
+         slots: dataState.slots,
+         pricePerhour: dataState.pricePerhour,
+         usedPoints: dataState.usedPoints,
+         userPoints: dataState.userPoints,
+         selectedDay: dataState.selectedDay,
+         selectedBookingSlots: dataState.selectedBookingSlots,
+         originalTotalAmount: dataState.originalTotalAmount,
+         finalAmount: dataState.finalAmount,
+         requiredDeposit: dataState.requiredDeposit,
+         minRequiredDeposit: dataState.minRequiredDeposit,
+         paidAmount: dataState.paidAmount,
+         remainingAmount: dataState.remainingAmount,
+         isOffer: dataState.isOffer,
+         noShowCount: dataState.noShowCount,
+         penaltyBookingsLeft: dataState.penaltyBookingsLeft,
+       );
+}
+
+class SlotLockFailure extends BookingDataState {
+  final String errorMessageKey;
+  SlotLockFailure({
+    required this.errorMessageKey,
+    required BookingDataState dataState,
+  }) : super(
+         place: dataState.place,
+         liveSubPlace: dataState.liveSubPlace,
+         slots: dataState.slots,
+         pricePerhour: dataState.pricePerhour,
+         usedPoints: dataState.usedPoints,
+         userPoints: dataState.userPoints,
+         selectedDay: dataState.selectedDay,
+         selectedBookingSlots: dataState.selectedBookingSlots,
+         originalTotalAmount: dataState.originalTotalAmount,
+         finalAmount: dataState.finalAmount,
+         requiredDeposit: dataState.requiredDeposit,
+         minRequiredDeposit: dataState.minRequiredDeposit,
+         paidAmount: dataState.paidAmount,
+         remainingAmount: dataState.remainingAmount,
+         isOffer: dataState.isOffer,
+         noShowCount: dataState.noShowCount,
+         penaltyBookingsLeft: dataState.penaltyBookingsLeft,
+       );
+}
+
+class PaymentLockSuccess extends BookingDataState {
+  final String messageKey;
+  PaymentLockSuccess({
+    required this.messageKey,
+    required BookingDataState dataState,
+  }) : super(
+         place: dataState.place,
+         liveSubPlace: dataState.liveSubPlace,
+         slots: dataState.slots,
+         pricePerhour: dataState.pricePerhour,
+         usedPoints: dataState.usedPoints,
+         userPoints: dataState.userPoints,
+         selectedDay: dataState.selectedDay,
+         selectedBookingSlots: dataState.selectedBookingSlots,
+         originalTotalAmount: dataState.originalTotalAmount,
+         finalAmount: dataState.finalAmount,
+         requiredDeposit: dataState.requiredDeposit,
+         minRequiredDeposit: dataState.minRequiredDeposit,
+         paidAmount: dataState.paidAmount,
+         remainingAmount: dataState.remainingAmount,
+         isOffer: dataState.isOffer,
+         noShowCount: dataState.noShowCount,
+         penaltyBookingsLeft: dataState.penaltyBookingsLeft,
+       );
+}
+
+class PaymentLockFailure extends BookingDataState {
+  final String errorMessageKey;
+  PaymentLockFailure({
+    required this.errorMessageKey,
+    required BookingDataState dataState,
+  }) : super(
+         place: dataState.place,
+         liveSubPlace: dataState.liveSubPlace,
+         slots: dataState.slots,
+         pricePerhour: dataState.pricePerhour,
+         usedPoints: dataState.usedPoints,
+         userPoints: dataState.userPoints,
+         selectedDay: dataState.selectedDay,
+         selectedBookingSlots: dataState.selectedBookingSlots,
+         originalTotalAmount: dataState.originalTotalAmount,
+         finalAmount: dataState.finalAmount,
+         requiredDeposit: dataState.requiredDeposit,
+         minRequiredDeposit: dataState.minRequiredDeposit,
+         paidAmount: dataState.paidAmount,
+         remainingAmount: dataState.remainingAmount,
+         isOffer: dataState.isOffer,
+         noShowCount: dataState.noShowCount,
+         penaltyBookingsLeft: dataState.penaltyBookingsLeft,
+       );
 }

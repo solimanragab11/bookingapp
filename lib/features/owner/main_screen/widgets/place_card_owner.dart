@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -8,8 +10,9 @@ import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/screen/place_schedule_screen.dart';
 
-import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 
 class PlaceCardOwner extends StatelessWidget {
   final PlaceModel place;
@@ -18,9 +21,15 @@ class PlaceCardOwner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final w = MediaQuery.of(context).size.width;
     final currentUser = context.read<AuthCubit>().currentUser;
-    final canViewAnalytics = currentUser != null && PermissionService.can(currentUser, 'viewAnalytics');
-    final canViewBookings = currentUser != null && PermissionService.can(currentUser, 'viewBookings');
+    final canViewAnalytics =
+        currentUser != null &&
+        PermissionService.can(currentUser, 'viewAnalytics');
+    final canViewBookings =
+        currentUser != null &&
+        PermissionService.can(currentUser, 'viewBookings');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -36,7 +45,10 @@ class PlaceCardOwner extends StatelessWidget {
                       Navigator.pushNamed(
                         context,
                         '/ownerDashboard',
-                        arguments: place.id,
+                        arguments: {
+                          'placeId': place.id,
+                          'placeName': place.name,
+                        },
                       );
                     },
                     backgroundColor: ColorManager.egyptianEarth,
@@ -44,7 +56,7 @@ class PlaceCardOwner extends StatelessWidget {
                     icon: Icons.trending_up_rounded,
                     label: context.tr('statistics', defaultValue: 'Statistics'),
                     borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(24),
+                      right: Radius.circular(30),
                     ),
                   ),
                 ],
@@ -52,13 +64,9 @@ class PlaceCardOwner extends StatelessWidget {
             : null,
         child: GestureDetector(
           onTap: () {
+            HapticFeedback.lightImpact();
             if (!canViewBookings) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.tr('permission_denied', defaultValue: 'Permission Denied')),
-                  backgroundColor: Colors.redAccent,
-                ),
-              );
+              SnackBarUtils.showError(context, 'permission_denied');
               return;
             }
             final cubit = context.read<ManageBookingPlaceCubit>();
@@ -74,24 +82,40 @@ class PlaceCardOwner extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: ColorManager.cardSurface.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: ColorManager.emeraldGreen.withOpacity(0.2),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPlaceImage(context),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  child: _buildCardHeader(context),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
               ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: ColorManager.cardSurface.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: ColorManager.emeraldGreen.withOpacity(0.3),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPlaceImage(context, h),
+                      Padding(
+                        padding: EdgeInsets.all(w * 0.04),
+                        child: _buildCardHeader(context, w),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -99,48 +123,89 @@ class PlaceCardOwner extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceImage(BuildContext context) {
-    return SizedBox(
-      height: 145,
-      width: double.infinity,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: place.images.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: place.images[0],
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: ColorManager.noirDeVigne,
-                  child: const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          ColorManager.egyptianEarth,
+  Widget _buildPlaceImage(BuildContext context, double h) {
+    return Stack(
+      children: [
+        SizedBox(
+          height: h * 0.22,
+          width: double.infinity,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            child: place.images.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: place.images[0],
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: ColorManager.noirDeVigne,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              ColorManager.egyptianEarth,
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                    errorWidget: (context, url, error) => Container(
+                      color: ColorManager.noirDeVigne,
+                      child: const Icon(
+                        Icons.broken_image,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: ColorManager.noirDeVigne,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.white54,
+                    ),
                   ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: ColorManager.noirDeVigne,
-                  child: const Icon(Icons.broken_image, color: Colors.white54),
-                ),
-              )
-            : Container(
-                color: ColorManager.noirDeVigne,
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white54,
-                ),
+          ),
+        ),
+        if (place.hasOffer)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: ColorManager.egyptianEarth,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-      ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_offer, color: Colors.white, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    context.tr('offer'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildCardHeader(BuildContext context) {
+  Widget _buildCardHeader(BuildContext context, double w) {
     return Row(
       children: [
         Expanded(
@@ -149,9 +214,9 @@ class PlaceCardOwner extends StatelessWidget {
             children: [
               Text(
                 place.name,
-                style: const TextStyle(
-                  color: ColorManager.wasabi,
-                  fontSize: 18,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: w * 0.05,
                   fontWeight: FontWeight.bold,
                 ),
                 maxLines: 1,
@@ -173,7 +238,7 @@ class PlaceCardOwner extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: ColorManager.egyptianEarth.withOpacity(0.1),
+            color: ColorManager.egyptianEarth.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: const Icon(

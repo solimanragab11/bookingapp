@@ -9,9 +9,10 @@ import 'package:hanzbthalk/core/widgets/cust_textfiled.dart';
 import 'package:hanzbthalk/core/widgets/lang_button.dart';
 import 'package:hanzbthalk/core/widgets/signup_bottomsheet.dart';
 import 'package:hanzbthalk/core/widgets/brand_logo.dart';
-import 'package:hanzbthalk/features/auth/signup/cubit/signup_cubit.dart.dart';
-import 'package:hanzbthalk/features/auth/signup/cubit/signup_state.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper_states.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -23,10 +24,13 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   // Prevents opening the OTP sheet twice on rapid state changes.
   bool _otpSheetOpen = false;
+  String? _currentVerificationId;
 
   // Policies agreement flag
   bool _agreedToPolicies = false;
@@ -35,6 +39,8 @@ class _SignupPageState extends State<SignupPage> {
   void dispose() {
     _phoneController.dispose();
     _nameController.dispose();
+    _pinController.dispose();
+    _confirmPinController.dispose();
     super.dispose();
   }
 
@@ -43,31 +49,40 @@ class _SignupPageState extends State<SignupPage> {
   // ---------------------------------------------------------------------------
 
   void _showOtpSheet(String verificationId) {
+    _currentVerificationId = verificationId;
     if (_otpSheetOpen) return;
     _otpSheetOpen = true;
 
-    final signUpCubit = context.read<SignUpCubit>();
+    final authCubit = context.read<AuthCubit>();
 
     SignupBottomSheet.showOTP(
       context: context,
       phoneNumber: _phoneController.text,
-      signUpCubit: signUpCubit,
+      authCubit: authCubit,
       onResend: () {
-        signUpCubit.sendOTP(_phoneController.text);
+        authCubit.sendSignUpOTP(
+          phoneNumber: _phoneController.text,
+          onCodeSent: (_) {},
+          onError: (_) {},
+        );
       },
       onVerify: (smsCode) {
-        signUpCubit.verifyOTP(username: _nameController.text, smsCode: smsCode);
+        authCubit.signUpWithPhoneAndPin(
+          verificationId: _currentVerificationId ?? verificationId,
+          smsCode: smsCode,
+          username: _nameController.text,
+          role: 'user',
+          pin: _pinController.text.trim(),
+          phoneNumber: _phoneController.text,
+        );
       },
     ).then((_) {
       _otpSheetOpen = false;
-      if (signUpCubit.state is SignUpLoading) {
-        signUpCubit.reset();
-      }
     });
   }
 
   Future<void> _launchPolicyUrl() async {
-    final Uri url = Uri.parse('https://hanzbthalk-aa12c.web.app/');
+    final Uri url = Uri.parse('https://hanzbthalk-aa12c.web.app/terms');
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -100,22 +115,17 @@ class _SignupPageState extends State<SignupPage> {
         ),
         body: Stack(
           children: [
-            BlocListener<SignUpCubit, SignUpState>(
+            BlocListener<AuthCubit, AuthState>(
               listener: (context, state) {
-                if (state is SignUpCodeSent) {
+                if (state is AuthOtpSent) {
+                  _currentVerificationId = state.verificationId;
                   _showOtpSheet(state.verificationId);
-                } else if (state is SignUpSuccess) {
+                } else if (state is AuthSuccess) {
+                  _otpSheetOpen = false;
                   Navigator.pushReplacementNamed(context, Routes.authWrapper);
-                } else if (state is SignUpError) {
-                  if (!_otpSheetOpen) {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        SnackBar(
-                          content: Text(context.tr(state.messageKey)),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                } else if (state is AuthFailure) {
+                  if (!_otpSheetOpen && state.messageKey != 'networkError') {
+                    SnackBarUtils.showError(context, state.messageKey);
                   }
                 }
               },
@@ -192,6 +202,57 @@ class _SignupPageState extends State<SignupPage> {
                                   },
                                 ),
                                 SizedBox(height: size.height * 0.02),
+                                CustTextField(
+                                  controller: _pinController,
+                                  hint: context.tr('pin'),
+                                  icon: Icons.lock_outline,
+                                  textColor: Colors.white,
+                                  hintTextColor: Colors.white.withOpacity(0.4),
+                                  iconColor: ColorManager.wasabi,
+                                  fillColor: ColorManager.cardSurface,
+                                  enabledBorderColor: ColorManager.emeraldGreen,
+                                  focusedBorderColor:
+                                      ColorManager.egyptianEarth,
+                                  keyboardType: TextInputType.number,
+                                  isPassword: true,
+                                  maxLength: 6,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return context.tr('pinRequired');
+                                    }
+                                    if (value.trim().length != 6) {
+                                      return context.tr('pinInvalid');
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                SizedBox(height: size.height * 0.02),
+                                CustTextField(
+                                  controller: _confirmPinController,
+                                  hint: context.tr('confirmNewPin'),
+                                  icon: Icons.lock_outline,
+                                  textColor: Colors.white,
+                                  hintTextColor: Colors.white.withOpacity(0.4),
+                                  iconColor: ColorManager.wasabi,
+                                  fillColor: ColorManager.cardSurface,
+                                  enabledBorderColor: ColorManager.emeraldGreen,
+                                  focusedBorderColor:
+                                      ColorManager.egyptianEarth,
+                                  keyboardType: TextInputType.number,
+                                  isPassword: true,
+                                  maxLength: 6,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return context.tr('pinRequired');
+                                    }
+                                    if (value.trim() !=
+                                        _pinController.text.trim()) {
+                                      return context.tr('pinsDoNotMatch');
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                SizedBox(height: size.height * 0.02),
                                 Row(
                                   children: [
                                     Checkbox(
@@ -241,64 +302,34 @@ class _SignupPageState extends State<SignupPage> {
                                   ],
                                 ),
                                 const Spacer(),
-                                BlocBuilder<SignUpCubit, SignUpState>(
-                                  buildWhen: (prev, curr) =>
-                                      curr is SignUpLoading ||
-                                      curr is SignUpInitial ||
-                                      curr is SignUpError ||
-                                      curr is SignUpCodeSent ||
-                                      curr is SignUpResendCountdown ||
-                                      curr is SignUpResendEnabled,
+                                BlocBuilder<AuthCubit, AuthState>(
                                   builder: (context, state) {
-                                    final isLoading = state is SignUpLoading;
-                                    bool isCountdown =
-                                        state is SignUpResendCountdown;
-                                    String btnLabel = context.tr('confirm');
-
-                                    if (state is SignUpResendCountdown) {
-                                      btnLabel =
-                                          "${context.tr('resendIn')} ${state.seconds}";
-                                    }
+                                    final isLoading = state is AuthLoading;
 
                                     return CustButton(
                                       h: size.height,
                                       w: size.width,
-                                      color: isCountdown
-                                          ? Colors.grey
-                                          : ColorManager.egyptianEarth,
+                                      color: ColorManager.egyptianEarth,
                                       size: 'mid',
-                                      lable: btnLabel,
+                                      lable: context.tr('confirm'),
                                       isLoading: isLoading,
                                       onTap: () {
-                                        final cubit = context
-                                            .read<SignUpCubit>();
+                                        final cubit = context.read<AuthCubit>();
 
                                         if (_formKey.currentState!.validate()) {
                                           if (!_agreedToPolicies) {
-                                            ScaffoldMessenger.of(context)
-                                              ..hideCurrentSnackBar()
-                                              ..showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    context.tr(
-                                                      'mustAgreeToPolicies',
-                                                    ),
-                                                  ),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
+                                            SnackBarUtils.showError(
+                                              context,
+                                              'mustAgreeToPolicies',
+                                            );
                                             return;
                                           }
-                                          if (isCountdown &&
-                                              cubit.verificationId != null) {
-                                            _showOtpSheet(
-                                              cubit.verificationId!,
-                                            );
-                                          } else if (!isCountdown) {
-                                            cubit.sendOTP(
-                                              _phoneController.text,
-                                            );
-                                          }
+                                          cubit.sendSignUpOTP(
+                                            phoneNumber: _phoneController.text
+                                                .trim(),
+                                            onCodeSent: (_) {},
+                                            onError: (_) {},
+                                          );
                                         }
                                       },
                                     );

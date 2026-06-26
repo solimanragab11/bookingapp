@@ -11,12 +11,14 @@ import 'package:hanzbthalk/core/db/firestore_owner_service.dart';
 import 'package:hanzbthalk/features/owner/repos/owner_repo_impl.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/logic/schedule_cubit.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/logic/schedule_state.dart';
+import 'package:hanzbthalk/features/user/booking/services/slot_lock_service.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/booking_summary_dialog.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/calendar_strip.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/place_schedule_header.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/schedule_action_bar.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/sub_place_selector.dart';
 import 'package:hanzbthalk/features/owner/place_schedule/widgets/time_slots_list.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 // تأكد من استيراد الـ Service لو كنت بتستخدمها هنا
 // import 'package:hanzbthalk/features/owner/data/owner_service.dart';
 
@@ -30,11 +32,11 @@ class PlaceScheduleScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return BlocProvider(
-      // هنا بننشئ الكوبيت وبنقوله ابدأ راقب المكان ده بالـ ID بتاعه فوراً
       create: (context) => ScheduleCubit(
         FirestoreOwnerService(AuthService()),
         OwnerRepoImpl(FirestoreOwnerService(AuthService())),
         getIt<PricingRepository>(),
+        getIt<SlotLockService>(),
       )..startWatchingPlace(placeId),
       child: Scaffold(
         backgroundColor: ColorManager.noirDeVigne,
@@ -46,23 +48,9 @@ class PlaceScheduleScreen extends StatelessWidget {
                 listener: (context, state) {
                   // هنا بنراقب لو حصل نجاح في الحجز أو الإلغاء اليدوي
                   if (state.status == ScheduleStatus.actionSuccess) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(context.tr('operation_success')),
-                        backgroundColor: ColorManager.emeraldGreen,
-                      ),
-                    );
+                    SnackBarUtils.showSuccess(context, 'operation_success');
                   } else if (state.status == ScheduleStatus.error) {
-                    final rawError = state.errorMessage ?? 'error';
-                    // لو الرسالة مفتاح ترجمة معروف نترجمها، غير كده نعرضها زي ما هي
-                    final displayed = context.tr(rawError, defaultValue: rawError);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(displayed),
-                        backgroundColor: Colors.redAccent,
-                        duration: const Duration(seconds: 5),
-                      ),
-                    );
+                    SnackBarUtils.showError(context, state.errorMessage ?? 'error');
                   }
                 },
                 builder: (context, state) {
@@ -145,8 +133,16 @@ class PlaceScheduleScreen extends StatelessWidget {
                 selectedCount: state.selectedSlots.length,
                 isSelectingBooked: state.isSelectingBooked ?? false,
                 onClearSelection: scheduleCubit.clearSelection,
-                onActionPressed: () =>
-                    _openSummaryDialog(context, currentPlace, state),
+                onActionPressed: () async {
+                  if (state.isSelectingBooked ?? false) {
+                    _openSummaryDialog(context, currentPlace, state);
+                  } else {
+                    final success = await scheduleCubit.proceedToManualBooking();
+                    if (success) {
+                      _openSummaryDialog(context, currentPlace, scheduleCubit.state);
+                    }
+                  }
+                },
               ),
           ],
         ),

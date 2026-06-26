@@ -8,6 +8,7 @@ class UserModel extends Equatable {
   final String username;
   final String userRole;
   final String phoneNumber;
+  final String fcmToken;
   final List<PlaceModel> favoraitsPlaces;
   final List<String> ownedPlaces;
   final List<BookingModel> bookedPlaces;
@@ -17,6 +18,8 @@ class UserModel extends Equatable {
   final String? ownerId;
   final List<String> assignedPlaceIds;
   final Map<String, bool> permissions;
+  final int noShowCount;
+  final int penaltyBookingsLeft;
 
   const UserModel({
     required this.id,
@@ -32,6 +35,9 @@ class UserModel extends Equatable {
     this.ownerId,
     this.assignedPlaceIds = const [],
     this.permissions = const {},
+    this.noShowCount = 0,
+    this.penaltyBookingsLeft = 0,
+    required this.fcmToken,
   });
 
   /// ---------------- FROM JSON ----------------
@@ -41,6 +47,7 @@ class UserModel extends Equatable {
       username: json['username'] ?? '',
       userRole: json['userRole'] ?? '',
       phoneNumber: json['phoneNumber'] ?? '',
+      fcmToken: json['fcmToken'] ?? '',
       favoraitsPlaces: (json['favoraitsPlaces'] as List<dynamic>? ?? [])
           .map((item) => PlaceModel.fromJson(item))
           .toList(),
@@ -61,10 +68,13 @@ class UserModel extends Equatable {
       assignedPlaceIds: (json['assignedPlaceIds'] as List<dynamic>? ?? [])
           .map((item) => item.toString())
           .toList(),
-      permissions: (json['permissions'] as Map<dynamic, dynamic>?)?.map(
+      permissions:
+          (json['permissions'] as Map<dynamic, dynamic>?)?.map(
             (k, v) => MapEntry(k.toString(), v == true),
           ) ??
           const {},
+      noShowCount: json['noShowCount'] ?? 0,
+      penaltyBookingsLeft: json['penaltyBookingsLeft'] ?? 0,
     );
   }
 
@@ -84,12 +94,16 @@ class UserModel extends Equatable {
       if (ownerId != null) 'ownerId': ownerId,
       'assignedPlaceIds': assignedPlaceIds,
       'permissions': permissions,
+      'noShowCount': noShowCount,
+      'penaltyBookingsLeft': penaltyBookingsLeft,
+      'fcmToken': fcmToken,
     };
   }
 
   UserModel copyWith({
     String? id,
     String? username,
+    String? fcmToken,
     String? userRole,
     String? phoneNumber,
     List<PlaceModel>? favoraitsPlaces,
@@ -101,10 +115,13 @@ class UserModel extends Equatable {
     String? ownerId,
     List<String>? assignedPlaceIds,
     Map<String, bool>? permissions,
+    int? noShowCount,
+    int? penaltyBookingsLeft,
   }) {
     return UserModel(
       id: id ?? this.id,
       username: username ?? this.username,
+      fcmToken: fcmToken ?? this.fcmToken,
       userRole: userRole ?? this.userRole,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       favoraitsPlaces: favoraitsPlaces ?? this.favoraitsPlaces,
@@ -116,23 +133,28 @@ class UserModel extends Equatable {
       ownerId: ownerId ?? this.ownerId,
       assignedPlaceIds: assignedPlaceIds ?? this.assignedPlaceIds,
       permissions: permissions ?? this.permissions,
+      noShowCount: noShowCount ?? this.noShowCount,
+      penaltyBookingsLeft: penaltyBookingsLeft ?? this.penaltyBookingsLeft,
     );
   }
 
   @override
   List<Object?> get props => [
-        id,
-        username,
-        userRole,
-        phoneNumber,
-        favoraitsPlaces,
-        ownedPlaces,
-        bookedPlaces,
-        offers,
-        history,
-        points,
-        ownerId,
-        assignedPlaceIds,
-        permissions,
-      ];
+    id,
+    username,
+    userRole,
+    phoneNumber,
+    favoraitsPlaces,
+    ownedPlaces,
+    bookedPlaces,
+    offers,
+    history,
+    points,
+    ownerId,
+    assignedPlaceIds,
+    permissions,
+    noShowCount,
+    penaltyBookingsLeft,
+    fcmToken,
+  ];
 }

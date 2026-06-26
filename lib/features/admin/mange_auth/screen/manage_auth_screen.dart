@@ -7,6 +7,7 @@ import 'package:hanzbthalk/core/widgets/background.dart';
 import 'package:hanzbthalk/features/admin/mange_auth/logic/manage_auth_cubit.dart';
 import 'package:hanzbthalk/features/admin/mange_auth/logic/mange_auth_states.dart';
 import 'package:hanzbthalk/features/admin/mange_auth/widgets/mang_auth_searchbar.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 import 'package:hanzbthalk/features/admin/mange_auth/widgets/mange_auth_listview.dart';
 
 class ManageAuthScreen extends StatelessWidget {
@@ -37,21 +38,11 @@ class ManageAuthScreen extends StatelessWidget {
       body: BlocListener<ManageAuthCubit, ManageAuthState>(
         listener: (context, state) {
           if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.errorMessage!),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+            SnackBarUtils.showError(context, state.errorMessage!);
             context.read<ManageAuthCubit>().clearMessages();
           }
           if (state.successMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.successMessage!),
-                backgroundColor: ColorManager.wasabi,
-              ),
-            );
+            SnackBarUtils.showSuccess(context, state.successMessage!);
             context.read<ManageAuthCubit>().clearMessages();
           }
         },

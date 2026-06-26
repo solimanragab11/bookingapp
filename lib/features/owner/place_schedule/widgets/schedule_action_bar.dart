@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
@@ -18,20 +19,28 @@ class ScheduleActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: _buildDecoration(),
-      child: SafeArea(
-        // تأمين الحواف في الموبايلات الحديثة
-        top: false,
-        child: Row(
-          children: [
-            _buildSelectionInfo(context),
-            const Spacer(),
-            _buildClearButton(context),
-            const SizedBox(width: 8),
-            _buildActionButton(context),
-          ],
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: _buildDecoration(),
+          child: SafeArea(
+            // تأمين الحواف في الموبايلات الحديثة
+            top: false,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildSelectionInfo(context),
+                ),
+                const SizedBox(width: 12),
+                _buildClearButton(context),
+                const SizedBox(width: 8),
+                _buildActionButton(context),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -51,11 +60,15 @@ class ScheduleActionBar extends StatelessWidget {
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         if (isSelectingBooked)
           Text(
             context.tr('cancellation_mode_active', defaultValue: 'Cancellation mode active'),
             style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
       ],
     );
@@ -73,27 +86,36 @@ class ScheduleActionBar extends StatelessWidget {
     return ElevatedButton(
       onPressed: onActionPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelectingBooked ? Colors.red : ColorManager.wasabi,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        backgroundColor: isSelectingBooked ? Colors.redAccent : ColorManager.egyptianEarth,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        elevation: 0,
       ),
-      child: Text(
-        isSelectingBooked 
-            ? context.tr('cancel_bookings', defaultValue: 'Cancel Bookings') 
-            : context.tr('manual_booking', defaultValue: 'Manual Booking'),
-        style: const TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          isSelectingBooked 
+              ? context.tr('cancel_bookings', defaultValue: 'Cancel Bookings') 
+              : context.tr('manual_booking', defaultValue: 'Manual Booking'),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
 
   BoxDecoration _buildDecoration() {
-    return const BoxDecoration(
-      color: ColorManager.cardSurface,
-      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+    return BoxDecoration(
+      color: ColorManager.cardSurface.withOpacity(0.4),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      border: Border(
+        top: BorderSide(
+          color: ColorManager.emeraldGreen.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
     );
   }
 

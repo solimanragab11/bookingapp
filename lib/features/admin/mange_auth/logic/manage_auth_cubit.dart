@@ -72,7 +72,8 @@ class ManageAuthCubit extends Cubit<ManageAuthState> {
             bookedPlaces: user.bookedPlaces, // ✅ بنحافظ على حجوزاته
             offers: user.offers,
             history: user.history,
-            points: user.points, // ✅ بنحافظ على نقاطه
+            points: user.points,
+            fcmToken: user.fcmToken, // ✅ بنحافظ على نقاطه
           );
         }
         return user;

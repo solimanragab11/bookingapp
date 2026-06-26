@@ -12,6 +12,12 @@ import 'package:hanzbthalk/features/user/home/widgets/place_list_view.dart';
 import 'package:hanzbthalk/features/user/home/widgets/category_list.dart';
 import 'package:hanzbthalk/features/user/home/widgets/catchy_filter_banner.dart';
 import 'package:hanzbthalk/features/user/home/widgets/home_sticky_header.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
+import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/db/push_notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -84,43 +90,99 @@ class _HomePageState extends State<HomePage> {
             });
           },
         ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: ColorManager.wasabi,
+          onPressed: () async {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              final snapshot = await FirebaseFirestore.instance
+                   .collection('bookings')
+                   .where('userId', isEqualTo: user.uid)
+                   .limit(1)
+                   .get();
+              if (snapshot.docs.isNotEmpty) {
+                final bookingId = snapshot.docs.first.id;
+                try {
+                  await getIt<PushNotificationService>().showTestNotification(bookingId);
+                  if (mounted) {
+                    SnackBarUtils.showInfo(
+                      context,
+                      "تمت جدولة إشعار تجريبي خلال 5 ثوانٍ! اغلق التطبيق أو اتركه مفتوحاً للاختبار.",
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    SnackBarUtils.showError(
+                      context,
+                      "خطأ في إرسال الإشعار: $e",
+                    );
+                  }
+                }
+              } else {
+                if (mounted) {
+                  SnackBarUtils.showInfo(
+                    context,
+                    "No bookings found to test. Please book a slot first!",
+                  );
+                }
+              }
+            } else {
+              if (mounted) {
+                SnackBarUtils.showError(
+                  context,
+                  "User is not logged in.",
+                );
+              }
+            }
+          },
+          child: const Icon(Icons.bug_report, color: Colors.white),
+        ),
         body: Stack(
           children: [
             BackGround(h: h, w: w, category: selectedCategory),
 
             // 1. Scrollable Content (Banner, Categories, Tabs, PlaceListView)
             Positioned.fill(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.only(
-                  left: w * 0.04,
-                  right: w * 0.04,
-                  top:
-                      MediaQuery.of(context).padding.top +
-                      145, // app bar + search bar + margins
-                  bottom: 20,
-                ),
-                child: Column(
-                  children: [
-                    CatchyFilterBanner(key: _filterBannerKey),
-                    const SizedBox(height: 15),
-                    CategoryList(
-                      key: _categoriesKey,
-                      selectedCategory: selectedCategory,
-                      onCategoryChanged: (category) {
-                        setState(() {
-                          selectedCategory = category;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 15),
-                    HomeTabsSection(key: _tabsKey, currentTab: selectedTab),
-                    const SizedBox(height: 15),
-                    PlaceListView(
-                      category: selectedCategory,
-                      firstCardKey: _firstCardKey,
-                    ),
-                  ],
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (scrollInfo) {
+                  if (scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent - 200) {
+                    context.read<HomeCubit>().fetchNextPage();
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    left: w * 0.04,
+                    right: w * 0.04,
+                    top:
+                        MediaQuery.of(context).padding.top +
+                        145, // app bar + search bar + margins
+                    bottom: 20,
+                  ),
+                  child: Column(
+                    children: [
+                      CatchyFilterBanner(key: _filterBannerKey),
+                      const SizedBox(height: 15),
+                      CategoryList(
+                        key: _categoriesKey,
+                        selectedCategory: selectedCategory,
+                        onCategoryChanged: (category) {
+                          setState(() {
+                            selectedCategory = category;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      HomeTabsSection(key: _tabsKey, currentTab: selectedTab),
+                      const SizedBox(height: 15),
+                      PlaceListView(
+                        category: selectedCategory,
+                        firstCardKey: _firstCardKey,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

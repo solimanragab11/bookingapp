@@ -9,6 +9,8 @@ class PaymentStatusDialog extends StatelessWidget {
   final bool isSuccess;
   final double paidAmount;
   final String orderId;
+  final bool isExistingBookingPayment;
+  final VoidCallback? onPaymentFinished;
   // تعريف الـ userId مباشرة من Firebase
   final String userId = FirebaseAuth.instance.currentUser?.uid ?? "guest_user";
 
@@ -17,11 +19,13 @@ class PaymentStatusDialog extends StatelessWidget {
     required this.isSuccess,
     required this.paidAmount,
     required this.orderId,
+    this.isExistingBookingPayment = false,
+    this.onPaymentFinished,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isSuccess) {
+    if (isSuccess && !isExistingBookingPayment) {
       Future.delayed(Duration.zero, () {
         // ignore: use_build_context_synchronously
         final cubit = context.read<BookingCubit>();
@@ -55,7 +59,9 @@ class PaymentStatusDialog extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             isSuccess
-                ? context.tr('bookingConfirmedSuccess')
+                ? (isExistingBookingPayment 
+                    ? context.tr('remaining_payment_settled_success', defaultValue: 'Remaining balance settled successfully!')
+                    : context.tr('bookingConfirmedSuccess'))
                 : context.tr('paymentFailedMessage'),
             textAlign: TextAlign.center,
           ),
@@ -63,7 +69,12 @@ class PaymentStatusDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+            if (isSuccess) {
+              onPaymentFinished?.call();
+            }
+          },
           child: Text(context.tr('ok')),
         ),
       ],

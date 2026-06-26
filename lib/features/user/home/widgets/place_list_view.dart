@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
 import 'package:hanzbthalk/core/routes/routes.dart';
+import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/core/widgets/place_card.dart';
 import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
 import 'package:hanzbthalk/features/user/home/cubit/home_stats.dart';
@@ -38,23 +39,57 @@ class PlaceListView extends StatelessWidget {
             return _buildEmptyState(context);
           }
 
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredPlaces.length,
-            itemBuilder: (context, index) {
-              final place = filteredPlaces[index];
-              return PlaceCard(
-                key: index == 0 ? firstCardKey : null,
-                place: place, // بنبعت الـ place المفلتر علطول
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  Routes.placeDetails,
-                  arguments: place,
+          return Column(
+            children: [
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredPlaces.length,
+                itemBuilder: (context, index) {
+                  final place = filteredPlaces[index];
+                  return PlaceCard(
+                    key: index == 0 ? firstCardKey : null,
+                    place: place, // بنبعت الـ place المفلتر علطول
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      Routes.placeDetails,
+                      arguments: place,
+                    ),
+                    isAvailable: true,
+                  );
+                },
+              ),
+              // 🔄 Loading More Indicator
+              if (state.isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        color: ColorManager.egyptianEarth,
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  ),
                 ),
-                isAvailable: true,
-              );
-            },
+              // End-of-list spacer
+              if (!state.hasMore && filteredPlaces.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      '•  •  •',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.2),
+                        fontSize: 18,
+                        letterSpacing: 4,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         } else if (state is HomeError) {
           return Center(

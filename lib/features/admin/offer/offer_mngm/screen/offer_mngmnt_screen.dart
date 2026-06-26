@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // 🔴 استدعاء ا
 import 'package:hanzbthalk/core/models/offer_model.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/core/widgets/background.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 import 'package:hanzbthalk/features/admin/offer/offer_list/logic/offers_cubit.dart';
 
 // 🔴 تأكد إن المسارات دي صحيحة عندك وشيل الكومنت من عليها
@@ -76,17 +77,13 @@ class _OfferFormPageState extends State<OfferFormPage> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate() || selectedPlaceId == null) {
       if (selectedPlaceId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a target place!')),
-        );
+        SnackBarUtils.showError(context, 'Please select a target place!');
       }
       return;
     }
 
     if (offerTarget == 'sub' && selectedSubPlaceId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a specific sub-place!')),
-      );
+      SnackBarUtils.showError(context, 'Please select a specific sub-place!');
       return;
     }
 
@@ -121,9 +118,7 @@ class _OfferFormPageState extends State<OfferFormPage> {
     } catch (e) {
       setState(() => isSaving = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving offer: $e')));
+        SnackBarUtils.showError(context, 'Error saving offer: $e');
       }
     }
   }
@@ -380,11 +375,7 @@ class _OfferFormPageState extends State<OfferFormPage> {
                               );
                             } catch (e) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error loading places: $e'),
-                                ),
-                              );
+                              SnackBarUtils.showError(context, 'Error loading places: $e');
                             }
                           },
                           child: InputDecorator(
@@ -469,13 +460,7 @@ class _OfferFormPageState extends State<OfferFormPage> {
                           GestureDetector(
                             onTap: () async {
                               if (selectedPlaceId == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Please select a place first!',
-                                    ),
-                                  ),
-                                );
+                                SnackBarUtils.showError(context, 'Please select a place first!');
                                 return;
                               }
 
@@ -504,13 +489,7 @@ class _OfferFormPageState extends State<OfferFormPage> {
                                 }).toList();
 
                                 if (subPlaces.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'No sub-places found for this place.',
-                                      ),
-                                    ),
-                                  );
+                                  SnackBarUtils.showError(context, 'No sub-places found for this place.');
                                   return;
                                 }
 
@@ -526,13 +505,7 @@ class _OfferFormPageState extends State<OfferFormPage> {
                                 );
                               } catch (e) {
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Error loading sub-places: $e',
-                                    ),
-                                  ),
-                                );
+                                SnackBarUtils.showError(context, 'Error loading sub-places: $e');
                               }
                             },
                             child: InputDecorator(

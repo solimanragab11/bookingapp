@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/core/repos/pricing_repository.dart';
@@ -20,6 +21,7 @@ import 'package:hanzbthalk/features/user/booking/widgets/booking_slots_grid.dart
 import 'package:hanzbthalk/features/user/booking/widgets/booking_summary_widget.dart';
 import 'package:hanzbthalk/features/user/booking/widgets/flexible_payment_input.dart';
 import 'package:hanzbthalk/features/user/booking/widgets/text_details_booking_widget.dart';
+import 'package:hanzbthalk/features/user/booking/services/slot_lock_service.dart';
 
 class BookingPage extends StatelessWidget with BookingHelper {
   final PlaceModel place;
@@ -38,6 +40,7 @@ class BookingPage extends StatelessWidget with BookingHelper {
         getIt<BookingService>(),
         getIt<AuthService>(),
         getIt<PricingRepository>(),
+        getIt<SlotLockService>(),
       )..initializeBooking(place: place, subPlace: subPlace),
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -189,8 +192,12 @@ class BookingPage extends StatelessWidget with BookingHelper {
                                                 bookingData.selectedBookingSlots,
                                             bookedTimeSlots:
                                                 bookingData.slots!.bookedTimeSlots,
+                                            lockedSlots:
+                                                bookingData.slots!.lockedSlots,
+                                            currentUserId:
+                                                context.read<AuthCubit>().currentUser?.id,
                                             onSlotToggled: (id) =>
-                                                cubit.toggleTimeSlot(id),
+                                                cubit.selectSlot(id),
                                             formatTimeSlot: formatTimeSlot,
                                             freeTimeSlots:
                                                 bookingData.slots!.freeTimeSlots,
@@ -212,6 +219,9 @@ class BookingPage extends StatelessWidget with BookingHelper {
                                         userPoints: bookingData.userPoints,
                                         selectedPoints: bookingData.usedPoints,
                                         isOfferEnabled: bookingData.isOffer,
+                                        noShowCount: bookingData.noShowCount,
+                                        penaltyBookingsLeft:
+                                            bookingData.penaltyBookingsLeft,
                                         onOfferToggle: (enabled) {
                                           cubit.toggleOffer(enabled);
                                         },
@@ -227,8 +237,21 @@ class BookingPage extends StatelessWidget with BookingHelper {
                                           );
                                         },
                                         onHalfPriceTap: () {
-                                          final half =
-                                              bookingData.finalAmount / 2;
+                                          final double slotPrice =
+                                              bookingData.finalAmount -
+                                                  (bookingData.noShowCount == 1 ||
+                                                          bookingData
+                                                                  .penaltyBookingsLeft >
+                                                              0
+                                                      ? 50.0
+                                                      : 0.0);
+                                          final double half = (slotPrice / 2) +
+                                              (bookingData.noShowCount == 1 ||
+                                                      bookingData
+                                                              .penaltyBookingsLeft >
+                                                          0
+                                                  ? 50.0
+                                                  : 0.0);
                                           cubit.updatePaidAmount(half);
                                         },
                                         onFullPriceTap: () {
@@ -267,20 +290,18 @@ class BookingPage extends StatelessWidget with BookingHelper {
   // --- الـ Listener والـ Button ---
   void _bookingListener(BuildContext context, BookingState state) {
     if (state is BookingSuccess) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr(state.message)),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SnackBarUtils.showSuccess(context, state.message);
       Navigator.popUntil(context, (route) => route.isFirst);
     } else if (state is BookingFailure) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr(state.errorMessage)),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SnackBarUtils.showError(context, state.errorMessage);
+    } else if (state is SlotLockSuccess) {
+      SnackBarUtils.showSuccess(context, context.tr(state.messageKey));
+    } else if (state is SlotLockFailure) {
+      SnackBarUtils.showError(context, context.tr(state.errorMessageKey));
+    } else if (state is PaymentLockSuccess) {
+      SnackBarUtils.showSuccess(context, context.tr(state.messageKey));
+    } else if (state is PaymentLockFailure) {
+      SnackBarUtils.showError(context, context.tr(state.errorMessageKey));
     }
   }
 
@@ -314,30 +335,180 @@ class BookingPage extends StatelessWidget with BookingHelper {
       lable: context.tr('payNow'),
       size: 'mid',
       onTap: isEnabled
-          ? () async {
-              // Show loading overlay
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) => const Center(
-                  child: CircularProgressIndicator(
-                    color: ColorManager.egyptianEarth,
-                  ),
-                ),
-              );
-              final data = cubit.state as BookingDataState;
-              final authUser = context.read<AuthCubit>().currentUser;
+          ? () {
+              _showBookingRulesDialog(context, () async {
+                final data = cubit.state as BookingDataState;
+                final authUser = context.read<AuthCubit>().currentUser;
 
-              // بنباصي الـ paidAmount اللي جاي من الـ FlexiblePaymentInput
-              await handleWalletPayment(
-                context,
-                data.paidAmount,
-                authUser?.phoneNumber ?? "0000000000",
-              );
-              Navigator.of(context).pop(); // close loading dialog
-              Navigator.pop(context);
+                // 1. Try to extend the lock to 10 minutes
+                final lockSuccess = await cubit.proceedToPayment();
+                if (!lockSuccess) {
+                  // If lock extension fails, abort flow (listener handles error snackbar)
+                  return;
+                }
+
+                // 2. Proceed to actual payment
+                if (context.mounted) {
+                  await handleWalletPayment(
+                    context,
+                    data.paidAmount,
+                    authUser?.phoneNumber ?? "0000000000",
+                  );
+                }
+              });
             }
           : () {},
+    );
+  }
+
+  void _showBookingRulesDialog(BuildContext context, VoidCallback onAgree) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: ColorManager.cardSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: ColorManager.emeraldGreen.withOpacity(0.5),
+              width: 1.5,
+            ),
+          ),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.gavel_rounded,
+                color: ColorManager.wasabi,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  context.tr('bookingRulesTitle'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('bookingRulesSubtitle'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                // Cancellation section title
+                const Text(
+                  "شروط الإلغاء والاسترداد / Cancellation & Refunds:",
+                  style: TextStyle(
+                    color: ColorManager.wasabi,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr('ruleCancellation1'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  context.tr('ruleCancellation2'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  context.tr('ruleCancellation3'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                const Divider(color: Colors.white12, height: 25),
+                // Penalties section title
+                const Text(
+                  "نظام غرامات عدم الحضور / No-Show Penalties:",
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr('rulePenalty1'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  context.tr('rulePenalty2'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  context.tr('rulePenalty3'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                context.tr('cancelBtn'),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorManager.egyptianEarth,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                onAgree();
+              },
+              child: Text(
+                context.tr('agreeAndPay'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

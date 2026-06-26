@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OfferModel extends Equatable {
   final String id;
@@ -26,22 +27,22 @@ class OfferModel extends Equatable {
   });
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.parse(val);
+      return DateTime.now();
+    }
+
     return OfferModel(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       discountPercentage: (json['discountPercentage'] ?? 0).toDouble(),
-      validUntil: DateTime.parse(
-        json['validUntil'] ?? DateTime.now().toIso8601String(),
-      ),
-      validFrom: DateTime.parse(
-        json['validFrom'] ?? DateTime.now().toIso8601String(),
-      ),
+      validUntil: parseDateTime(json['validUntil']),
+      validFrom: parseDateTime(json['validFrom']),
       placeId: json['placeId'] ?? '',
       isWholePlace: json['isWholePlace'] ?? false,
-      createdAt: DateTime.parse(
-        json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
+      createdAt: parseDateTime(json['createdAt']),
       subPlaceId: json['subPlaceId'] ?? '',
     );
   }

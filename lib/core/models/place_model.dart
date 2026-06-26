@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hanzbthalk/core/models/subplace_model.dart';
 
 class PlaceModel extends Equatable {
@@ -18,6 +19,7 @@ class PlaceModel extends Equatable {
   final String? menuPdfUrl;
   final List<String> subPlacesIds;
   final bool hasOffer;
+  final String governorate; // 🌍 Governorate property
 
   const PlaceModel({
     required this.id,
@@ -36,6 +38,7 @@ class PlaceModel extends Equatable {
     this.menuPdfUrl,
     required this.subPlacesIds,
     this.hasOffer = false,
+    this.governorate = 'alexandria', // Default to cairo
   });
 
   factory PlaceModel.fromJson(
@@ -48,7 +51,6 @@ class PlaceModel extends Equatable {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       type: json['type'] as String? ?? '',
-      // التعامل مع الأرقام بمرونة (Safe Casting)
       latitude: (json['latitude'] as num? ?? 0.0).toDouble(),
       longitude: (json['longitude'] as num? ?? 0.0).toDouble(),
       rating: (json['rating'] as num? ?? 0.0).toDouble(),
@@ -62,14 +64,14 @@ class PlaceModel extends Equatable {
       closingTime: json['closingTime'] as String? ?? '',
       minimumCharge: (json['minimumCharge'] as num?)?.toDouble(),
       menuPdfUrl: json['menuPdfUrl'] as String?,
-
-      // داخل factory Place.fromJson في ملف place.dart
       subPlacesIds:
           (json['subPlacesIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       hasOffer: json['hasOffer'] as bool? ?? false,
+      governorate:
+          json['governorate'] as String? ?? 'cairo', // Parse governorate
     );
   }
 
@@ -91,10 +93,9 @@ class PlaceModel extends Equatable {
       "menuPdfUrl": menuPdfUrl,
       "subPlacesIds": subPlacesIds,
       "hasOffer": hasOffer,
+      "governorate": governorate, // Serialize governorate
     };
   }
-  // --- In place_model.dart, REPLACE copyWith with this version
-  //     (removes the unused `subPlaces` param - PlaceModel has no such field) ---
 
   PlaceModel copyWith({
     String? id,
@@ -113,6 +114,7 @@ class PlaceModel extends Equatable {
     String? menuPdfUrl,
     List<String>? subPlacesIds,
     bool? hasOffer,
+    String? governorate,
   }) {
     return PlaceModel(
       id: id ?? this.id,
@@ -131,6 +133,7 @@ class PlaceModel extends Equatable {
       menuPdfUrl: menuPdfUrl ?? this.menuPdfUrl,
       subPlacesIds: subPlacesIds ?? this.subPlacesIds,
       hasOffer: hasOffer ?? this.hasOffer,
+      governorate: governorate ?? this.governorate,
     );
   }
 
@@ -152,5 +155,18 @@ class PlaceModel extends Equatable {
     menuPdfUrl,
     subPlacesIds,
     hasOffer,
+    governorate,
   ];
+}
+
+class PlacesPageResult {
+  final List<PlaceModel> places;
+  final DocumentSnapshot? lastDocument;
+  final bool hasMore;
+
+  const PlacesPageResult({
+    required this.places,
+    required this.lastDocument,
+    required this.hasMore,
+  });
 }

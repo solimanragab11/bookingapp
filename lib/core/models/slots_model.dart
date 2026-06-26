@@ -7,11 +7,13 @@ import 'package:flutter/foundation.dart';
 class SlotsModel extends Equatable {
   final Map<String, List<String>> freeTimeSlots;
   final List<BookingIdModel> bookedTimeSlots;
+  final Map<String, dynamic> lockedSlots; // key: slotId (day_slot), value: {userId, expiresAt}
   final String id;
 
   const SlotsModel({
     required this.freeTimeSlots,
     required this.bookedTimeSlots,
+    this.lockedSlots = const {},
     required this.id,
   });
 
@@ -72,9 +74,13 @@ class SlotsModel extends Equatable {
       });
     }
 
+    final rawLocked = json["lockedSlots"];
+    final Map<String, dynamic> parsedLocked = rawLocked is Map ? Map<String, dynamic>.from(rawLocked) : const {};
+
     return SlotsModel(
       freeTimeSlots: parsedFree,
       bookedTimeSlots: parsedBooked,
+      lockedSlots: parsedLocked,
       id: json["id"] as String? ?? 'no-id',
     );
   }
@@ -84,6 +90,7 @@ class SlotsModel extends Equatable {
       "id": id,
       "freeTimeSlots": freeTimeSlots,
       "bookedTimeSlots": bookedTimeSlots.map((item) => item.toJson()).toList(),
+      "lockedSlots": lockedSlots,
     };
   }
 
@@ -91,14 +98,16 @@ class SlotsModel extends Equatable {
     String? id,
     Map<String, List<String>>? freeTimeSlots,
     List<BookingIdModel>? bookedTimeSlots,
+    Map<String, dynamic>? lockedSlots,
   }) {
     return SlotsModel(
       freeTimeSlots: freeTimeSlots ?? this.freeTimeSlots,
       bookedTimeSlots: bookedTimeSlots ?? this.bookedTimeSlots,
+      lockedSlots: lockedSlots ?? this.lockedSlots,
       id: id ?? this.id,
     );
   }
 
   @override
-  List<Object?> get props => [id, freeTimeSlots, bookedTimeSlots];
+  List<Object?> get props => [id, freeTimeSlots, bookedTimeSlots, lockedSlots];
 }

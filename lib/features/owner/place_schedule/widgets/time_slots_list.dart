@@ -1,12 +1,19 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hanzbthalk/core/models/booking_id_model.dart';
 import 'package:hanzbthalk/core/models/subplace_model.dart';
 import 'package:hanzbthalk/core/models/slots_model.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
+import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
+import 'package:hanzbthalk/features/owner/place_schedule/widgets/booking_details_bottom_sheet.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 
 class TimeSlotsList extends StatelessWidget {
   final List<SubPlaceModel> subPlaces;
@@ -14,7 +21,6 @@ class TimeSlotsList extends StatelessWidget {
   final DateTime selectedDate;
   final int subPlaceIndex;
   final List<String> selectedSlots;
-  // أضفنا الـ bookingId المختار حالياً لمنع التداخل
   final String? activeBookingId;
   final void Function(String slot, bool isBooked, BookingIdModel? booking)
   onSlotTap;
@@ -47,21 +53,73 @@ class TimeSlotsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final dayKey = DateFormat('EEEE dd/MM', 'en').format(selectedDate).toLowerCase();
-    
+
+    String? matchedDayKey;
+    if (slots != null) {
+      final dayStr = DateFormat('dd/MM', 'en').format(selectedDate);
+      for (var key in slots!.freeTimeSlots.keys) {
+        if (key.endsWith(dayStr)) {
+          matchedDayKey = key;
+          break;
+        }
+      }
+      if (matchedDayKey == null) {
+        for (var booking in slots!.bookedTimeSlots) {
+          for (var key in booking.slots.keys) {
+            if (key.endsWith(dayStr)) {
+              matchedDayKey = key;
+              break;
+            }
+          }
+          if (matchedDayKey != null) break;
+        }
+      }
+    }
+    final dayKey =
+        matchedDayKey ??
+        DateFormat('EEEE dd/MM', 'en').format(selectedDate).toLowerCase();
+
     if (slots == null || subPlaceIndex >= subPlaces.length) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: ColorManager.wasabi,
-        ),
+        child: CircularProgressIndicator(color: ColorManager.wasabi),
       );
     }
+
     final List<String> free = List.from(slots!.freeTimeSlots[dayKey] ?? []);
     final List<String> booked = slots!.bookedTimeSlots
         .expand((booking) => booking.slots[dayKey] ?? <String>[])
         .toList();
 
     final List<String> all = [...free, ...booked];
+
+    // Check if there are no slots at all for this day (handling closed days)
+    if (all.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                color: Colors.white.withOpacity(0.4),
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr('no_schedule_available'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     bool checkIsPast(String slot) {
       final isToday = DateUtils.isSameDay(selectedDate, now);
@@ -109,6 +167,29 @@ class TimeSlotsList extends StatelessWidget {
         final bool isBookedByOwner = bookingDetails.bookedBy == 'owner';
         final bool isBookedByUser = isBookedByOthers && !isBookedByOwner;
 
+        // التحقق من حالة القفل المؤقت في الداتابيز
+        final String slotId = '${dayKey}_$slot';
+        bool isLockedByYou = isSelected;
+        bool isLockedByOthers = false;
+
+        if (slots?.lockedSlots != null &&
+            slots!.lockedSlots.containsKey(slotId)) {
+          final lockInfo = Map<String, dynamic>.from(
+            slots!.lockedSlots[slotId],
+          );
+          final expiresAt = lockInfo['expiresAt'] as Timestamp;
+          final lockUserId = lockInfo['userId'] as String;
+
+          if (expiresAt.toDate().isAfter(DateTime.now())) {
+            final authUser = context.read<AuthCubit>().currentUser;
+            if (lockUserId == authUser?.id) {
+              isLockedByYou = true;
+            } else {
+              isLockedByOthers = true;
+            }
+          }
+        }
+
         // التحقق من "وحدة الحجز": هل هذه الساعة تنتمي لنفس الحجز المختار حالياً؟
         bool isFromDifferentBooking = false;
         if (selectedSlots.isNotEmpty && isBookedByOthers) {
@@ -121,68 +202,117 @@ class TimeSlotsList extends StatelessWidget {
         String statusText;
         Color bgColor;
         Color contentColor;
+        Color borderColor;
         IconData leadingIcon = Icons.access_time_filled;
 
-        if (isPast) {
-          statusText = context.tr('past_status');
-          bgColor = Colors.red.withOpacity(0.4);
-          contentColor = Colors.white;
-        } else if (isBookedByUser) {
+        if (isBookedByUser) {
           statusText = context.tr('booked_by_app');
-          bgColor = Colors.grey.withOpacity(0.2);
-          contentColor = Colors.grey;
+          bgColor = Colors.grey.withOpacity(0.15);
+          contentColor = Colors.white60;
+          borderColor = Colors.white10;
           leadingIcon = Icons.lock;
         } else if (isBookedByOwner) {
-          // عرض اسم ورقم المحجوز له في الـ statusText
           statusText =
               "${bookingDetails.bookedBy}\n${bookingDetails.bookername}";
           bgColor = isFromDifferentBooking
               ? Colors.orange.withOpacity(0.05)
-              : Colors.orange.withOpacity(0.2);
+              : Colors.orange.withOpacity(0.15);
           contentColor = isFromDifferentBooking
               ? Colors.orange.withOpacity(0.3)
               : Colors.orange;
-        } else if (isSelected) {
-          statusText = context.tr('booked_by_you');
-          bgColor = ColorManager.wasabi;
-          contentColor = Colors.black;
+          borderColor = isFromDifferentBooking
+              ? Colors.orange.withOpacity(0.1)
+              : Colors.orange.withOpacity(0.4);
+        } else if (isPast) {
+          statusText = context.tr('past_status');
+          bgColor = Colors.redAccent.withOpacity(0.15);
+          contentColor = Colors.white;
+          borderColor = Colors.redAccent.withOpacity(0.5);
+        } else if (isLockedByOthers) {
+          // محجوز مؤقتاً من مستخدم آخر (Orange/Amber)
+          statusText = context.tr('in_process_other');
+          bgColor = Colors.orange.withOpacity(0.25);
+          contentColor = Colors.orangeAccent;
+          borderColor = Colors.orangeAccent;
+          leadingIcon = Icons.pending_actions_rounded;
+        } else if (isLockedByYou) {
+          // محجوز مؤقتاً بواسطة الموظف/المالك الحالي (Purple)
+          statusText = context.tr('in_process_yours');
+          bgColor = Colors.purple.shade400;
+          contentColor = Colors.white;
+          borderColor = Colors.purpleAccent;
           leadingIcon = Icons.check_circle;
         } else {
           statusText = context.tr('available_status');
-          bgColor = ColorManager.wasabi.withOpacity(0.1);
-          contentColor = ColorManager.wasabi;
+          bgColor = ColorManager.noirDeVigne.withOpacity(0.6);
+          contentColor = ColorManager.creasedKhaki;
+          borderColor = ColorManager.emeraldGreen.withOpacity(0.35);
         }
 
         return Opacity(
           opacity: (isBookedByUser || isFromDifferentBooking) ? 0.5 : 1.0,
           child: GestureDetector(
             onTap: () {
-              if (isPast) {
+              HapticFeedback.lightImpact();
+
+              if (isPast && !isBookedByOthers) {
                 _showStatusMessage(
                   context,
                   context.tr('msg_time_started'),
                   Colors.redAccent,
                 );
-              } else if (isBookedByUser) {
+              } else if (isBookedByOthers) {
+                if (bookingDetails.bookedBy == 'user') {
+                  BookingDetailsBottomSheet.show(
+                    context: context,
+                    bookingId: bookingDetails.bookingId,
+                    bookerName: bookingDetails.bookername,
+                    bookedBy: bookingDetails.bookedBy,
+                    slotTime: _formatToLocal12Hour(context, slot),
+                    rawSlotTime: slot,
+                    canCancel: false,
+                    onSelectForCancellation: () {},
+                  );
+                  return;
+                }
+
+                if (selectedSlots.isEmpty) {
+                  final currentUser = context.read<AuthCubit>().currentUser;
+                  final canCancel =
+                      currentUser != null &&
+                      PermissionService.can(currentUser, 'cancelBooking');
+
+                  BookingDetailsBottomSheet.show(
+                    context: context,
+                    bookingId: bookingDetails.bookingId,
+                    bookerName: bookingDetails.bookername,
+                    bookedBy: bookingDetails.bookedBy,
+                    slotTime: _formatToLocal12Hour(context, slot),
+                    rawSlotTime: slot,
+                    canCancel: canCancel,
+                    onSelectForCancellation: () {
+                      onSlotTap(slot, true, bookingDetails);
+                    },
+                  );
+                } else {
+                  if (isFromDifferentBooking) {
+                    _showStatusMessage(
+                      context,
+                      context.tr('msg_one_booking_at_a_time'),
+                      Colors.orange,
+                    );
+                  } else {
+                    onSlotTap(slot, true, bookingDetails);
+                  }
+                }
+              } else if (isLockedByOthers) {
                 _showStatusMessage(
                   context,
-                  context.tr('msg_user_booking_protected'),
-                  Colors.blueGrey,
-                );
-              } else if (isFromDifferentBooking) {
-                // منع اختيار ساعة من حجز مختلف
-                _showStatusMessage(
-                  context,
-                  context.tr('msg_one_booking_at_a_time'),
-                  Colors.orange,
+                  context.tr('slot_busy_now'),
+                  Colors.orangeAccent,
                 );
               } else {
-                // نمرر الموديل بالكامل عشان الـ ActionBar ياخد منه الاسم والرقم
-                onSlotTap(
-                  slot,
-                  isBookedByOthers,
-                  isBookedByOthers ? bookingDetails : null,
-                );
+                onSlotTap(slot, false, null);
               }
             },
             child: Container(
@@ -190,18 +320,15 @@ class TimeSlotsList extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
                 color: bgColor,
-                border: Border.all(
-                  color: isSelected ? ColorManager.wasabi : Colors.transparent,
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: 1.2),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: ListTile(
                 leading: Icon(leadingIcon, color: contentColor),
                 title: Text(
                   _formatToLocal12Hour(context, slot),
-                  style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.white,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -223,13 +350,10 @@ class TimeSlotsList extends StatelessWidget {
   }
 
   void _showStatusMessage(BuildContext context, String message, Color color) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, textAlign: TextAlign.center),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (color == Colors.redAccent) {
+      SnackBarUtils.showError(context, message);
+    } else {
+      SnackBarUtils.showInfo(context, message);
+    }
   }
 }

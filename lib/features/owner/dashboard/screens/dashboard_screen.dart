@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/qr_code/presentation/widgets/qr_generator.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/core/widgets/background.dart';
 import 'package:hanzbthalk/features/owner/dashboard/widgets/dashboard_app_bar.dart';
@@ -12,12 +13,17 @@ import '../logic/dashboard_cubit.dart';
 import '../logic/dashboard_state.dart';
 
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
-import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String placeId;
-  const OwnerDashboardScreen({super.key, required this.placeId});
+  final String placeName;
+  const OwnerDashboardScreen({
+    super.key,
+    required this.placeId,
+    required this.placeName,
+  });
 
   @override
   State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
@@ -40,7 +46,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final currentUser = context.read<AuthCubit>().currentUser;
-    final canViewAnalytics = currentUser != null && PermissionService.can(currentUser, 'viewAnalytics');
+    final canViewAnalytics =
+        currentUser != null &&
+        PermissionService.can(currentUser, 'viewAnalytics');
 
     return BlocProvider(
       // إنشاء الكوبيت باستخدام getIt
@@ -106,12 +114,26 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.only(top: 40),
                                   child: Text(
-                                    context.tr('permission_denied', defaultValue: 'Permission Denied'),
-                                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                                    context.tr(
+                                      'permission_denied',
+                                      defaultValue: 'Permission Denied',
+                                    ),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
+
+                            // جوه الـ build method بتاعة شاشة الأونر
+                            Center(
+                              child: VenueQrGenerator(
+                                venueId: widget.placeId,
+                                venueName: widget.placeName,
+                              ),
+                            ),
                           ],
                         ),
                       );

@@ -4,6 +4,7 @@ import 'package:hanzbthalk/core/db/admin_services.dart';
 import 'package:hanzbthalk/core/db/auth_service.dart';
 import 'package:hanzbthalk/core/db/booking_analytics_service.dart';
 import 'package:hanzbthalk/core/db/booking_service.dart';
+import 'package:hanzbthalk/features/user/booking/services/slot_lock_service.dart';
 import 'package:hanzbthalk/core/repos/pricing_repository.dart';
 import 'package:hanzbthalk/core/repos/pricing_repository_impl.dart';
 import 'package:hanzbthalk/features/admin/add_place/logic/add_place_cubit.dart';
@@ -15,6 +16,7 @@ import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 import 'package:hanzbthalk/features/auth/login/bloc/login_cubit.dart';
 import 'package:hanzbthalk/features/auth/repo/firebase_auth_repo_impl.dart';
 import 'package:hanzbthalk/features/auth/signup/cubit/signup_cubit.dart.dart';
+import 'package:hanzbthalk/core/db/push_notification_service.dart';
 // Features: Owner
 import 'package:hanzbthalk/core/db/firestore_owner_service.dart';
 import 'package:hanzbthalk/features/owner/repos/owner_repo_impl.dart';
@@ -23,6 +25,9 @@ import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking
 import 'package:hanzbthalk/features/owner/dashboard/logic/dashboard_cubit.dart';
 import 'package:hanzbthalk/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
 import 'package:hanzbthalk/features/owner/manage_employees/logic/manage_employees_cubit.dart';
+import 'package:hanzbthalk/features/owner/logic/employee_booking_cubit/employee_booking_cubit.dart';
+import 'package:hanzbthalk/features/user/check_booking/cubit/check_in_cubit.dart';
+import 'package:hanzbthalk/features/user/dispute/cubit/dispute_cubit.dart';
 import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
 import 'package:hanzbthalk/features/user/home/repos/home_repo.dart';
 // Features: Auth (مهم جداً لحل مشكلة الصورة)
@@ -37,6 +42,12 @@ final getIt = GetIt.instance;
 
 Future<void> setupGetIt() async {
   // ================= 1. Core & Services =================
+
+  if (!getIt.isRegistered<PushNotificationService>()) {
+    getIt.registerLazySingleton<PushNotificationService>(
+      () => PushNotificationService(),
+    );
+  }
 
   if (!getIt.isRegistered<PricingRepository>()) {
     getIt.registerLazySingleton<PricingRepository>(
@@ -55,6 +66,10 @@ Future<void> setupGetIt() async {
   }
   if (!getIt.isRegistered<BookingService>()) {
     getIt.registerLazySingleton<BookingService>(() => BookingService());
+  }
+
+  if (!getIt.isRegistered<SlotLockService>()) {
+    getIt.registerLazySingleton<SlotLockService>(() => SlotLockService());
   }
 
   if (!getIt.isRegistered<FirestoreOwnerService>()) {
@@ -132,7 +147,7 @@ Future<void> setupGetIt() async {
   }
   if (!getIt.isRegistered<AuthCubit>()) {
     getIt.registerLazySingleton<AuthCubit>(
-      () => AuthCubit(getIt<AuthService>()),
+      () => AuthCubit(getIt<AuthService>(), getIt<FirebaseAuthRepoImpl>()),
     );
   }
   if (!getIt.isRegistered<HomeCubit>()) {
@@ -190,5 +205,20 @@ Future<void> setupGetIt() async {
         upgradeToOwnerAUseCase: getIt<UpgradeToOwnerAUseCase>(),
       ),
     );
+  }
+
+  // 🎯 تسجيل الـ CheckInCubit الجديد لإثبات الحضور بالـ QR
+  if (!getIt.isRegistered<CheckInCubit>()) {
+    getIt.registerFactory<CheckInCubit>(() => CheckInCubit());
+  }
+
+  // 🎯 تسجيل الـ EmployeeBookingCubit للـ No-Show والـ Cash PIN
+  if (!getIt.isRegistered<EmployeeBookingCubit>()) {
+    getIt.registerFactory<EmployeeBookingCubit>(() => EmployeeBookingCubit());
+  }
+
+  // 🎯 تسجيل الـ DisputeCubit للنزاع والـ GPS
+  if (!getIt.isRegistered<DisputeCubit>()) {
+    getIt.registerFactory<DisputeCubit>(() => DisputeCubit());
   }
 }

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hanzbthalk/core/localization/localization_extension.dart';
 import 'package:hanzbthalk/features/user/booking/cubit/booking_cubit.dart';
 import 'package:hanzbthalk/features/user/payment/widgets/payment_status_dialog.dart';
@@ -8,13 +10,17 @@ import 'package:webview_flutter/webview_flutter.dart';
 class PaymentWebViewScreen extends StatefulWidget {
   final String paymentUrl;
   final double paidAmount;
-  final BookingCubit bookingCubit;
+  final BookingCubit? bookingCubit;
+  final String? existingBookingId;
+  final VoidCallback? onPaymentFinished;
 
   const PaymentWebViewScreen({
     super.key,
     required this.paymentUrl,
     required this.paidAmount,
-    required this.bookingCubit,
+    this.bookingCubit,
+    this.existingBookingId,
+    this.onPaymentFinished,
   });
 
   @override
@@ -30,8 +36,13 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   void initState() {
     super.initState();
 
+    final String userAgent = Platform.isIOS
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        : "Mozilla/5.0 (Linux; Android 13; SM-S901B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent(userAgent)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (url) {
@@ -39,6 +50,25 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
           },
           onPageFinished: (url) {
             if (mounted) setState(() => _isLoading = false);
+
+            // Inject CSS and Meta tag to force responsiveness and scrollability
+            try {
+              _controller.runJavaScript("""
+                (function() {
+                  var style = document.createElement('style');
+                  style.innerHTML = 'html, body { overflow: auto !important; height: auto !important; min-height: 100% !important; }';
+                  document.head.appendChild(style);
+                  
+                  var meta = document.createElement('meta');
+                  meta.name = 'viewport';
+                  meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+                  document.head.appendChild(meta);
+                })();
+              """);
+            } catch (e) {
+              debugPrint("Error injecting viewport and scroll CSS: \$e");
+            }
+
             // بنفحص الحالة برضه عند نهاية تحميل أي صفحة
             _checkPaymentStatus(url);
           },
@@ -90,21 +120,50 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     // الأولوية للي جاي من الـ URL، لو مش موجود نستخدم اللي جاي من السيرفر
     final String finalOrderId = orderIdFromUrl ?? "رقم الطلب غير متوفر";
 
+    if (isSuccess && widget.existingBookingId != null) {
+      try {
+        final docRef = FirebaseFirestore.instance.collection('bookings').doc(widget.existingBookingId);
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final snapshot = await transaction.get(docRef);
+          if (snapshot.exists) {
+            final double currentPaid = (snapshot.data()?['paidAmount'] ?? 0.0).toDouble();
+            final double newPaid = currentPaid + widget.paidAmount;
+            transaction.update(docRef, {
+              'paidAmount': newPaid,
+              'isCashSettled': true,
+            });
+          }
+        });
+        debugPrint("✅ Firestore updated successfully for existing booking: ${widget.existingBookingId}");
+      } catch (e) {
+        debugPrint("❌ Error updating Firestore for existing booking: $e");
+      }
+    }
+
     if (mounted) {
       // قفل الـ WebView
       Navigator.pop(context);
+
+      Widget dialog = PaymentStatusDialog(
+        isSuccess: isSuccess,
+        paidAmount: widget.paidAmount,
+        orderId: finalOrderId,
+        isExistingBookingPayment: widget.existingBookingId != null,
+        onPaymentFinished: widget.onPaymentFinished,
+      );
+
+      if (widget.bookingCubit != null) {
+        dialog = BlocProvider.value(
+          value: widget.bookingCubit!,
+          child: dialog,
+        );
+      }
+
       // إظهار دايالوغ النتيجة
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => BlocProvider.value(
-          value: widget.bookingCubit,
-          child: PaymentStatusDialog(
-            isSuccess: isSuccess,
-            paidAmount: widget.paidAmount,
-            orderId: finalOrderId,
-          ),
-        ),
+        builder: (_) => dialog,
       );
     }
   }

@@ -3,16 +3,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hanzbthalk/core/db/auth_service.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
+import 'package:hanzbthalk/core/errors/exceptions.dart';
 import 'package:hanzbthalk/core/models/user_model.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_wrapper_states.dart';
+import 'package:hanzbthalk/features/auth/repo/auth_repo.dart';
 import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
+  final AuthRepo _authRepo;
 
   UserModel? currentUser;
 
-  AuthCubit(this._authService) : super(const AuthInitial());
+  AuthCubit(this._authService, this._authRepo) : super(const AuthInitial());
 
   Future<void> checkAuthStatus() async {
     emit(const AuthLoading());
@@ -113,6 +116,143 @@ class AuthCubit extends Cubit<AuthState> {
     } finally {
       currentUser = null;
       emit(const AuthUnauthenticated());
+    }
+  }
+
+  // ===========================================================================
+  // PIN-Based Authentication Methods
+  // ===========================================================================
+
+  Future<void> sendSignUpOTP({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      await _authRepo.sendOTP(
+        phoneNumber: phoneNumber,
+        onCodeSent: (verId) {
+          emit(AuthOtpSent(verId));
+          onCodeSent(verId);
+        },
+        onError: (errKey) {
+          emit(AuthFailure(errKey));
+          onError(errKey);
+        },
+      );
+    } catch (e) {
+      debugPrint('[AuthCubit] sendSignUpOTP generic error: $e');
+      emit(const AuthFailure('otpSendError'));
+      onError('otpSendError');
+    }
+  }
+
+  Future<void> signUpWithPhoneAndPin({
+    required String verificationId,
+    required String smsCode,
+    required String username,
+    required String role,
+    required String pin,
+    required String phoneNumber,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authRepo.signUpWithPhoneAndPin(
+        verificationId: verificationId,
+        smsCode: smsCode,
+        username: username,
+        role: role,
+        pin: pin,
+        phoneNumber: phoneNumber,
+      );
+      currentUser = user;
+      emit(AuthSuccess(user: user, role: user.userRole));
+    } on DatabaseException catch (e) {
+      debugPrint('[AuthCubit] signUpWithPhoneAndPin database error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } on UserNotAuthenticatedException catch (e) {
+      debugPrint('[AuthCubit] signUpWithPhoneAndPin authentication error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } catch (e) {
+      debugPrint('[AuthCubit] signUpWithPhoneAndPin generic error: $e');
+      emit(const AuthFailure('authError'));
+    }
+  }
+
+  Future<void> loginWithPhoneAndPin({
+    required String phoneNumber,
+    required String pin,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authRepo.signInWithPhoneAndPin(
+        phoneNumber: phoneNumber,
+        pin: pin,
+      );
+      currentUser = user;
+      emit(AuthSuccess(user: user, role: user.userRole));
+    } on DatabaseException catch (e) {
+      debugPrint('[AuthCubit] loginWithPhoneAndPin database error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } on UserNotAuthenticatedException catch (e) {
+      debugPrint('[AuthCubit] loginWithPhoneAndPin authentication error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } catch (e) {
+      debugPrint('[AuthCubit] loginWithPhoneAndPin generic error: $e');
+      emit(const AuthFailure('authError'));
+    }
+  }
+
+  Future<void> sendResetPinOTP({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(String errorKey) onError,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      await _authRepo.sendResetPinOTP(
+        phoneNumber: phoneNumber,
+        onCodeSent: (verId) {
+          emit(AuthOtpSent(verId));
+          onCodeSent(verId);
+        },
+        onError: (errKey) {
+          emit(AuthFailure(errKey));
+          onError(errKey);
+        },
+      );
+    } catch (e) {
+      debugPrint('[AuthCubit] sendResetPinOTP generic error: $e');
+      emit(const AuthFailure('otpSendError'));
+      onError('otpSendError');
+    }
+  }
+
+  Future<void> resetPin({
+    required String verificationId,
+    required String smsCode,
+    required String phoneNumber,
+    required String newPin,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      await _authRepo.resetPin(
+        verificationId: verificationId,
+        smsCode: smsCode,
+        phoneNumber: phoneNumber,
+        newPin: newPin,
+      );
+      emit(const AuthResetPinSuccess());
+    } on DatabaseException catch (e) {
+      debugPrint('[AuthCubit] resetPin database error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } on UserNotAuthenticatedException catch (e) {
+      debugPrint('[AuthCubit] resetPin authentication error: ${e.message}');
+      emit(AuthFailure(e.message));
+    } catch (e) {
+      debugPrint('[AuthCubit] resetPin generic error: $e');
+      emit(const AuthFailure('authError'));
     }
   }
 }

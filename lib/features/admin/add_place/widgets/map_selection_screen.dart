@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:hanzbthalk/core/localization/localization_extension.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   const MapSelectionScreen({super.key});
@@ -71,9 +71,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         _moveToLocation(target);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.tr('locationNotFound'))));
+      SnackBarUtils.showError(context, 'locationNotFound');
     }
   }
 

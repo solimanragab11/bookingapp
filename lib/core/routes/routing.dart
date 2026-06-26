@@ -4,10 +4,11 @@ import 'package:hanzbthalk/core/db/auth_service.dart';
 import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/features/auth/auth_wrapper/auth_cubit.dart';
 import 'package:hanzbthalk/core/routes/routes.dart';
-import 'package:hanzbthalk/core/services/permission_service.dart';
+import 'package:hanzbthalk/core/db/permission_service.dart';
 import 'package:hanzbthalk/core/models/place_model.dart';
 import 'package:hanzbthalk/features/admin/add_place/logic/add_place_cubit.dart';
 import 'package:hanzbthalk/features/admin/admin_dashboard/screen/admin_dashboard_screen.dart';
+import 'package:hanzbthalk/features/admin/admin_dashboard/screen/refund_requests_screen.dart';
 import 'package:hanzbthalk/features/admin/admin_home/logic/admin_home_cubit.dart';
 import 'package:hanzbthalk/features/admin/admin_home/screens/admin_home_screen.dart';
 import 'package:hanzbthalk/features/admin/mange_auth/logic/manage_auth_cubit.dart';
@@ -19,6 +20,7 @@ import 'package:hanzbthalk/features/auth/signup/cubit/signup_cubit.dart.dart';
 import 'package:hanzbthalk/features/owner/logic/booking_management_cubit/booking_mng_cubit.dart';
 import 'package:hanzbthalk/features/owner/gloabal_dashboard/logic/global_dashboard_cubit.dart';
 import 'package:hanzbthalk/features/owner/manage_employees/screens/permission_denied_screen.dart';
+import 'package:hanzbthalk/features/user/check_booking/presentation/check_in_scanner_screen.dart';
 import 'package:hanzbthalk/features/user/home/cubit/home_cubit.dart';
 import 'package:hanzbthalk/features/user/user_bookings/cubit/user_bookings_cubit.dart';
 
@@ -46,6 +48,9 @@ import 'package:hanzbthalk/features/owner_onboarding/presentation/pages/owner_ag
 import 'package:hanzbthalk/features/owner_onboarding/presentation/pages/owner_pending_page.dart';
 
 class AppRouter {
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   static Route<dynamic> generateRoute(RouteSettings settings) {
     // Route protection guard: Redirect unauthenticated requests to the auth wrapper
     final publicRoutes = [Routes.authWrapper, Routes.login, Routes.signup];
@@ -95,6 +100,7 @@ class AppRouter {
             create: (_) => getIt<UserBookingsCubit>(),
             child: const MyBookingsPage(),
           ),
+          settings: settings,
         );
 
       case Routes.placeDetails:
@@ -148,6 +154,9 @@ class AppRouter {
           ),
         );
 
+      case Routes.refundRequests:
+        return MaterialPageRoute(builder: (_) => const RefundRequestsScreen());
+
       // ================= OWNER ROUTES =================
       case Routes.ownerMainScreen:
         return MaterialPageRoute(
@@ -177,17 +186,24 @@ class AppRouter {
         );
 
       case Routes.ownerDashboard:
-        final placeId = settings.arguments as String;
+        final args = settings.arguments as Map<String, dynamic>;
+        final placeId = args['placeId'] as String;
+        final placeName = args['placeName'] as String;
         return MaterialPageRoute(
-          builder: (_) => OwnerDashboardScreen(placeId: placeId),
+          builder: (_) =>
+              OwnerDashboardScreen(placeId: placeId, placeName: placeName),
         );
-
+      case Routes.checkInScanner:
+        return MaterialPageRoute(builder: (_) => const CheckInScannerScreen());
       case Routes.manageEmployees:
         final authCubit = getIt<AuthCubit>();
         final currentUser = authCubit.currentUser;
         // Only block if a user is present and lacks the required permission
-        if (currentUser != null && !PermissionService.can(currentUser, 'manageEmployees')) {
-          return MaterialPageRoute(builder: (_) => const ManageEmployeesPermissionDenied());
+        if (currentUser != null &&
+            !PermissionService.can(currentUser, 'manageEmployees')) {
+          return MaterialPageRoute(
+            builder: (_) => const ManageEmployeesPermissionDenied(),
+          );
         }
         return MaterialPageRoute(
           builder: (_) => BlocProvider(

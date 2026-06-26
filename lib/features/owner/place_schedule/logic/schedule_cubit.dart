@@ -12,11 +12,14 @@ import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/core/db/admin_services.dart';
 import 'package:hanzbthalk/core/db/booking_service.dart';
 import 'schedule_state.dart';
+import 'package:hanzbthalk/features/user/booking/services/slot_lock_service.dart';
+import 'package:hanzbthalk/core/db/auth_service.dart';
 
 class ScheduleCubit extends Cubit<ScheduleState> {
   final FirestoreOwnerService _ownerService;
   final OwnerRepoImpl _ownerRepository;
   final PricingRepository _pricingRepository;
+  final SlotLockService _slotLockService;
   StreamSubscription? _placeSubscription;
   StreamSubscription? _slotsSubscription;
 
@@ -24,6 +27,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     this._ownerService,
     this._ownerRepository,
     this._pricingRepository,
+    this._slotLockService,
   ) : super(ScheduleState.initial());
 
   // ---------------------------------------------------------------------------
@@ -104,8 +108,12 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     emit(state.copyWith(status: ScheduleStatus.loading));
     debugPrint('📅 [addManualBooking] START');
     debugPrint('📅 [addManualBooking] placeId=$placeId subPlaceId=$subPlaceId');
-    debugPrint('📅 [addManualBooking] userPhone=$userPhone bookingDate=$bookingDate');
-    debugPrint('📅 [addManualBooking] selectedSlots=$selectedSlots pricePerHour=$pricePerHour deposit=$deposit');
+    debugPrint(
+      '📅 [addManualBooking] userPhone=$userPhone bookingDate=$bookingDate',
+    );
+    debugPrint(
+      '📅 [addManualBooking] selectedSlots=$selectedSlots pricePerHour=$pricePerHour deposit=$deposit',
+    );
 
     try {
       final String dayKey = _formatBookingDate(bookingDate);
@@ -113,17 +121,21 @@ class ScheduleCubit extends Cubit<ScheduleState> {
 
       final Map<String, List<String>> formattedSlots = {dayKey: selectedSlots};
       final double totalPrice = selectedSlots.length * pricePerHour;
-      debugPrint('📅 [addManualBooking] totalPrice=$totalPrice formattedSlots=$formattedSlots');
+      debugPrint(
+        '📅 [addManualBooking] totalPrice=$totalPrice formattedSlots=$formattedSlots',
+      );
 
       // البحث عن UserId برقم التليفون
-      debugPrint('📅 [addManualBooking] Looking up userId for phone: $userPhone');
+      debugPrint(
+        '📅 [addManualBooking] Looking up userId for phone: $userPhone',
+      );
       final String? userId = await _ownerRepository.getUserIdByPhone(userPhone);
       debugPrint('📅 [addManualBooking] getUserIdByPhone result: $userId');
 
       final booking = BookingModel(
         bookedBy: 'owner',
         id: const Uuid().v4(),
-        userId: userId ?? 'unknown_user',
+        userId: userId ?? userPhone,
         subPlaceId: subPlaceId,
         createdAt: bookingDate,
         timeSlots: formattedSlots,
@@ -137,8 +149,12 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         priceAfterOffer: totalPrice,
         placeId: placeId,
         isCash: true,
+        status: 'active',
+        checkInTime: '',
       );
-      debugPrint('📅 [addManualBooking] BookingModel created with id=${booking.id} userId=${booking.userId}');
+      debugPrint(
+        '📅 [addManualBooking] BookingModel created with id=${booking.id} userId=${booking.userId}',
+      );
 
       // التنفيذ في Firebase
       debugPrint('📅 [addManualBooking] Calling bookSlots...');
@@ -230,7 +246,32 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         .watchSlots(subPlaceId)
         .listen(
           (slots) {
-            emit(state.copyWith(currentSlots: slots));
+            final Set<String> dayKeys = {};
+            dayKeys.addAll(slots.freeTimeSlots.keys);
+            for (var booking in slots.bookedTimeSlots) {
+              dayKeys.addAll(booking.slots.keys);
+            }
+
+            DateTime selectedDate = state.selectedDate;
+
+            if (dayKeys.isNotEmpty) {
+              final List<DateTime> dates = dayKeys.map((k) => _parseDayKey(k)).toList();
+              dates.sort((a, b) => a.compareTo(b));
+              
+              final hasCurrentDate = dates.any((d) =>
+                  d.year == selectedDate.year &&
+                  d.month == selectedDate.month &&
+                  d.day == selectedDate.day);
+
+              if (!hasCurrentDate) {
+                selectedDate = dates.first;
+              }
+            }
+
+            emit(state.copyWith(
+              currentSlots: slots,
+              selectedDate: selectedDate,
+            ));
           },
           onError: (error) {
             emit(
@@ -250,19 +291,100 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     return super.close();
   }
 
-  void clearSelection() => emit(
-    state.copyWith(
-      selectedSlots: [],
-      activeBookingId: () => null,
-      isSelectingBooked: () => false,
-    ),
-  );
+  Future<void> clearSelection() async {
+    final List<String> slotsToRelease = List<String>.from(state.selectedSlots);
+    final bool isSelectingBooked = state.isSelectingBooked ?? false;
 
-  void toggleSlot(String clickedSlot, bool isBooked) {
+    emit(
+      state.copyWith(
+        selectedSlots: [],
+        activeBookingId: () => null,
+        isSelectingBooked: () => false,
+      ),
+    );
+
+    if (slotsToRelease.isNotEmpty && !isSelectingBooked) {
+      final authService = getIt<AuthService>();
+      final userId = await authService.getCurrentUserId();
+      if (userId != null && state.subPlaces.isNotEmpty && state.selectedSubPlaceIndex < state.subPlaces.length) {
+        final String subPlaceId = state.subPlaces[state.selectedSubPlaceIndex].id;
+        final String dayKey = _getCurrentDayKey();
+        final List<String> slotIds = slotsToRelease.map((slot) => "${dayKey}_$slot").toList();
+        try {
+          await _slotLockService.releaseLocks(
+            subPlaceId: subPlaceId,
+            slotIds: slotIds,
+            userId: userId,
+          );
+        } catch (e) {
+          debugPrint("❌ ScheduleCubit: Error releasing locks in clearSelection: $e");
+        }
+      }
+    }
+  }
+
+  // تمديد القفل إلى 10 دقائق قبل البدء في الحجز اليدوي
+  Future<bool> proceedToManualBooking() async {
+    if (state.subPlaces.isEmpty || state.selectedSubPlaceIndex >= state.subPlaces.length) return false;
+    final String subPlaceId = state.subPlaces[state.selectedSubPlaceIndex].id;
+
+    final authService = getIt<AuthService>();
+    final userId = await authService.getCurrentUserId();
+    if (userId == null) {
+      emit(
+        state.copyWith(
+          status: ScheduleStatus.error,
+          errorMessage: 'user_not_authenticated',
+        ),
+      );
+      return false;
+    }
+
+    final String dayKey = _getCurrentDayKey();
+    final List<String> slotIds = state.selectedSlots.map((slot) => "${dayKey}_$slot").toList();
+    if (slotIds.isEmpty) return false;
+
+    emit(state.copyWith(status: ScheduleStatus.loading));
+
+    try {
+      final success = await _slotLockService.tryLockSlots(
+        subPlaceId: subPlaceId,
+        slotIds: slotIds,
+        userId: userId,
+        durationMinutes: 10,
+      );
+
+      if (success) {
+        emit(state.copyWith(status: ScheduleStatus.liveUpdate));
+        return true;
+      } else {
+        emit(
+          state.copyWith(
+            status: ScheduleStatus.error,
+            errorMessage: 'lock_expired',
+          ),
+        );
+        emit(state.copyWith(status: ScheduleStatus.liveUpdate));
+        return false;
+      }
+    } catch (e) {
+      debugPrint("❌ ScheduleCubit: Exception in proceedToManualBooking: $e");
+      emit(
+        state.copyWith(
+          status: ScheduleStatus.error,
+          errorMessage: 'lock_expired',
+        ),
+      );
+      emit(state.copyWith(status: ScheduleStatus.liveUpdate));
+      return false;
+    }
+  }
+
+  Future<void> toggleSlot(String clickedSlot, bool isBooked) async {
     if (isBooked) {
       _handleBookedSlotToggle(clickedSlot);
     } else {
-      _handleManualSlotToggle(clickedSlot);
+      await _handleManualSlotToggle(clickedSlot);
     }
   }
 
@@ -279,7 +401,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         bookedBy: '',
         bookername: '',
         slots: {},
-      ), // يفضل يكون عندك static method للـ empty model
+      ),
     );
 
     if (targetBooking.bookingId.isEmpty) return;
@@ -292,22 +414,91 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     }
   }
 
-  void _handleManualSlotToggle(String clickedSlot) {
+  Future<void> _handleManualSlotToggle(String clickedSlot) async {
     final List<String> currentSlots = List<String>.from(state.selectedSlots);
+    final String dayKey = _getCurrentDayKey();
+    final String slotId = "${dayKey}_$clickedSlot";
 
-    if (currentSlots.contains(clickedSlot)) {
-      currentSlots.remove(clickedSlot);
-    } else {
-      currentSlots.add(clickedSlot);
+    final authService = getIt<AuthService>();
+    final userId = await authService.getCurrentUserId();
+    if (userId == null) {
+      emit(
+        state.copyWith(
+          status: ScheduleStatus.error,
+          errorMessage: 'user_not_authenticated',
+        ),
+      );
+      return;
     }
 
-    emit(
-      state.copyWith(
-        selectedSlots: currentSlots,
-        activeBookingId: () => null, // تصفير الـ ID عشان نضمن الـ Toggle يشتغل
-        isSelectingBooked: () => false,
-      ),
-    );
+    if (state.subPlaces.isEmpty || state.selectedSubPlaceIndex >= state.subPlaces.length) return;
+    final String subPlaceId = state.subPlaces[state.selectedSubPlaceIndex].id;
+
+    if (currentSlots.contains(clickedSlot)) {
+      // --- Deselecting (Optimistic Update) ---
+      currentSlots.remove(clickedSlot);
+      emit(
+        state.copyWith(
+          selectedSlots: currentSlots,
+          activeBookingId: () => null,
+          isSelectingBooked: () => false,
+        ),
+      );
+
+      try {
+        await _slotLockService.releaseLockSlot(
+          subPlaceId: subPlaceId,
+          slotId: slotId,
+          userId: userId,
+        );
+      } catch (e) {
+        debugPrint("❌ ScheduleCubit: Error releasing owner lock in background: $e");
+      }
+    } else {
+      // --- Selecting (Optimistic Update) ---
+      currentSlots.add(clickedSlot);
+      emit(
+        state.copyWith(
+          selectedSlots: currentSlots,
+          activeBookingId: () => null,
+          isSelectingBooked: () => false,
+        ),
+      );
+
+      try {
+        final success = await _slotLockService.tryLockSlot(
+          subPlaceId: subPlaceId,
+          slotId: slotId,
+          userId: userId,
+          durationMinutes: 1,
+        );
+
+        if (!success) {
+          // --- Revert Optimistic Update ---
+          final List<String> freshSlots = List<String>.from(state.selectedSlots)..remove(clickedSlot);
+          emit(
+            state.copyWith(
+              selectedSlots: freshSlots,
+              status: ScheduleStatus.error,
+              errorMessage: 'slot_taken_by_other',
+            ),
+          );
+          emit(state.copyWith(status: ScheduleStatus.liveUpdate));
+        }
+      } catch (e) {
+        // --- Revert Optimistic Update ---
+        debugPrint("❌ ScheduleCubit: Exception locking owner slot: $e");
+        final List<String> freshSlots = List<String>.from(state.selectedSlots)..remove(clickedSlot);
+        emit(
+          state.copyWith(
+            selectedSlots: freshSlots,
+            status: ScheduleStatus.error,
+            errorMessage: 'slot_taken_by_other',
+          ),
+        );
+        emit(state.copyWith(status: ScheduleStatus.liveUpdate));
+      }
+    }
   }
 
   void _selectFullBooking(BookingIdModel booking, String dayKey) {
@@ -332,6 +523,18 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   }
 
   String _getCurrentDayKey() {
+    final slots = state.currentSlots;
+    if (slots != null) {
+      final dayStr = DateFormat('dd/MM', 'en').format(state.selectedDate);
+      for (var key in slots.freeTimeSlots.keys) {
+        if (key.endsWith(dayStr)) return key;
+      }
+      for (var booking in slots.bookedTimeSlots) {
+        for (var key in booking.slots.keys) {
+          if (key.endsWith(dayStr)) return key;
+        }
+      }
+    }
     return DateFormat('EEEE dd/MM', 'en').format(state.selectedDate).toLowerCase();
   }
 
@@ -342,6 +545,42 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-  String _formatBookingDate(DateTime date) =>
-      DateFormat('EEEE dd/MM', 'en').format(date).toLowerCase();
+  String _formatBookingDate(DateTime date) {
+    final slots = state.currentSlots;
+    if (slots != null) {
+      final dayStr = DateFormat('dd/MM', 'en').format(date);
+      for (var key in slots.freeTimeSlots.keys) {
+        if (key.endsWith(dayStr)) return key;
+      }
+      for (var booking in slots.bookedTimeSlots) {
+        for (var key in booking.slots.keys) {
+          if (key.endsWith(dayStr)) return key;
+        }
+      }
+    }
+    return DateFormat('EEEE dd/MM', 'en').format(date).toLowerCase();
+  }
+
+  DateTime _parseDayKey(String dayKey) {
+    try {
+      final parts = dayKey.trim().split(RegExp(r'\s+'));
+      if (parts.length < 2) return DateTime.now();
+
+      final dateParts = parts[1].split('/');
+      final day = int.parse(dateParts[0]);
+      final month = int.parse(dateParts[1]);
+
+      final now = DateTime.now();
+      int year = now.year;
+      if (month < now.month && now.month - month > 6) {
+        year += 1;
+      } else if (month > now.month && month - now.month > 6) {
+        year -= 1;
+      }
+
+      return DateTime(year, month, day);
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
 }

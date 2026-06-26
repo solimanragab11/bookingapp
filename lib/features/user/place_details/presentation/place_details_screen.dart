@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hanzbthalk/core/localization/app_localizations.dart';
 import 'package:hanzbthalk/core/models/place_model.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 import 'package:hanzbthalk/core/widgets/background.dart';
@@ -16,6 +15,8 @@ import 'package:hanzbthalk/core/di/dependency_injection.dart';
 import 'package:hanzbthalk/core/db/admin_services.dart';
 import 'package:hanzbthalk/core/models/subplace_model.dart';
 
+import 'package:hanzbthalk/core/widgets/snackbar_utils.dart';
+
 class PlaceDetailsScreen extends StatelessWidget {
   final PlaceModel place;
 
@@ -23,17 +24,7 @@ class PlaceDetailsScreen extends StatelessWidget {
 
   void _sharePlace(BuildContext context, PlaceModel place) {
     Clipboard.setData(ClipboardData(text: place.locationUrl.isEmpty ? place.name : place.locationUrl));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.tr('linkCopied'),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: ColorManager.egyptianEarth,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    SnackBarUtils.showSuccess(context, 'linkCopied');
   }
 
   @override

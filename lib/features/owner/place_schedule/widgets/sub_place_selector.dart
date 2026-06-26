@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hanzbthalk/core/localization/app_localizations.dart';
 import 'package:hanzbthalk/core/style_manger/color_manager.dart';
 
@@ -27,7 +28,10 @@ class SubPlaceSelector extends StatelessWidget {
         itemBuilder: (_, index) {
           final isSelected = selectedIndex == index;
           return GestureDetector(
-            onTap: () => onTap(index),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap(index);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
@@ -36,17 +40,20 @@ class SubPlaceSelector extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isSelected
                     ? ColorManager.egyptianEarth
-                    : ColorManager.emeraldGreen,
-                borderRadius: BorderRadius.circular(25),
+                    : ColorManager.cardSurface.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected ? Colors.transparent : Colors.white24,
+                  color: isSelected
+                      ? ColorManager.egyptianEarth
+                      : ColorManager.emeraldGreen.withOpacity(0.2),
+                  width: 1.2,
                 ),
               ),
               child: Text(
                 '${context.tr('field_label', defaultValue: 'Field')} ${index + 1}',
                 style: TextStyle(
-                  color: isSelected ? Colors.black : Colors.white,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),

@@ -12,6 +12,8 @@ class FlexiblePaymentInput extends StatefulWidget {
   final int userPoints;
   final int selectedPoints;
   final bool isOfferEnabled;
+  final int noShowCount;
+  final int penaltyBookingsLeft;
 
   final ValueChanged<bool> onOfferToggle;
   final ValueChanged<double> onPointsChanged;
@@ -35,6 +37,8 @@ class FlexiblePaymentInput extends StatefulWidget {
     required this.onHalfPriceTap,
     required this.onFullPriceTap,
     required this.minDeposit,
+    this.noShowCount = 0,
+    this.penaltyBookingsLeft = 0,
   });
 
   @override
@@ -105,6 +109,55 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
             ),
 
           const SizedBox(height: 20),
+          
+          if (widget.penaltyBookingsLeft > 0) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "حسابك مقيد (مستوى 3): يجب دفع كامل المبلغ الإضافي شاملاً غرامة عدم الحضور أونلاين لتأكيد الحجز.\n"
+                      "Account Restricted (Level 3): Full online payment + 50 EGP penalty is required.",
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+          ] else if (widget.noShowCount == 1) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.orangeAccent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "تم إضافة غرامة عدم الحضور بقيمة 50 جنيه مصري لمبلغ الدفع.\n"
+                      "A 50 EGP penalty fine has been added to your payment bounds.",
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+          ],
+
           Text(
             context.tr('selectPaymentAmount'),
             style: const TextStyle(
@@ -115,42 +168,48 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
           ),
           const SizedBox(height: 12),
 
-          Row(
-            children: [
-              QuickActionButton(
-                label: context.tr('minDeposit'),
-                isSelected: widget.paidAmount == widget.minDeposit,
-                onTap: widget.onMinDepositTap,
-                amount: widget.minDeposit,
-              ),
-              const SizedBox(width: 6),
-              QuickActionButton(
-                label: context.tr('halfAmount'),
-                isSelected: widget.paidAmount == widget.currentFinalPrice / 2,
-                onTap: widget.onHalfPriceTap,
-                amount: widget.currentFinalPrice / 2,
-              ),
-              const SizedBox(width: 6),
-              QuickActionButton(
-                label: context.tr('fullPrice'),
-                isSelected: widget.paidAmount == widget.currentFinalPrice,
-                onTap: widget.onFullPriceTap,
-                amount: widget.currentFinalPrice,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
+          if (widget.penaltyBookingsLeft == 0) ...[
+            Row(
+              children: [
+                QuickActionButton(
+                  label: context.tr('minDeposit'),
+                  isSelected: widget.paidAmount == widget.minDeposit,
+                  onTap: widget.onMinDepositTap,
+                  amount: widget.minDeposit,
+                ),
+                const SizedBox(width: 6),
+                QuickActionButton(
+                  label: context.tr('halfAmount'),
+                  isSelected: widget.paidAmount == widget.currentFinalPrice / 2,
+                  onTap: widget.onHalfPriceTap,
+                  amount: widget.currentFinalPrice / 2,
+                ),
+                const SizedBox(width: 6),
+                QuickActionButton(
+                  label: context.tr('fullPrice'),
+                  isSelected: widget.paidAmount == widget.currentFinalPrice,
+                  onTap: widget.onFullPriceTap,
+                  amount: widget.currentFinalPrice,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
 
           TextField(
             controller: _controller,
             keyboardType: TextInputType.number,
+            enabled: widget.penaltyBookingsLeft == 0,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              labelText: context.tr('customAmount'),
+              labelText: widget.penaltyBookingsLeft > 0 ? "المبلغ المطلوب دفعه / Required Amount" : context.tr('customAmount'),
               labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
               suffixText: context.tr('egp'),
               suffixStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: ColorManager.emeraldGreen.withOpacity(0.4)),
@@ -172,10 +231,17 @@ class _FlexiblePaymentInputState extends State<FlexiblePaymentInput> {
             "${widget.originalTotalPrice.toStringAsFixed(0)} ${context.tr('egp')}",
           ),
 
+          if (widget.noShowCount == 1 || widget.penaltyBookingsLeft > 0)
+            _buildSummaryRow(
+              "غرامة عدم الحضور / Penalty Fine",
+              "+ 50 ${context.tr('egp')}",
+              color: Colors.redAccent,
+            ),
+
           if (widget.isOfferEnabled && widget.selectedPoints > 0)
             _buildSummaryRow(
               "${context.tr('offerDiscount')} (${widget.selectedPoints}%):",
-              "- ${(widget.originalTotalPrice - widget.currentFinalPrice).toStringAsFixed(0)} ${context.tr('egp')}",
+              "- ${(widget.originalTotalPrice - (widget.currentFinalPrice - (widget.noShowCount == 1 || widget.penaltyBookingsLeft > 0 ? 50.0 : 0.0))).toStringAsFixed(0)} ${context.tr('egp')}",
               color: Colors.green,
             ),
 
